@@ -45,7 +45,7 @@ Then in DeepSeek Harness:
 ```
 
 ```text
-Session eval — a1b2c3d4… (dsh-session-eval v0.1.0)
+Session eval — a1b2c3d4… (dsh-session-eval v0.2.0)
 Overall: A
   Reliability   A    2/87 tool results errored (2.3%)
   Re-ask        A    1 re-ask signal(s) over 23 turns (0.4/10 turns)
@@ -67,7 +67,7 @@ Compare two sessions — the regression workflow:
 ```
 
 ```text
-Session diff — a1b2c3d4… → e5f6a7b8… (dsh-session-eval v0.1.0)
+Session diff — a1b2c3d4… → e5f6a7b8… (dsh-session-eval v0.2.0)
 Overall: regressed — 0 improved, 2 regressed, 1 flat.
   Reliability   2.1% → 11.8%   regressed
   Re-ask        0.5 → 3.2      regressed
@@ -75,6 +75,23 @@ Overall: regressed — 0 improved, 2 regressed, 1 flat.
 ```
 
 Typical use: grade the ten sessions before and after a plugin or prompt change; a persistent `Reliability` regression is an early warning that the change hurt real work, not just benchmarks.
+
+See the whole trend — no ids to hunt for:
+
+```text
+/eval-history        # last 5 sessions in this workspace
+/eval-history 12     # last 12
+```
+
+```text
+Session history — last 5 in this workspace
+  2026-09-20 14:02  a1b2c3d4…  B   4 turns, 9 tools
+  2026-09-21 09:15  c3d4e5f6…  A   5 turns, 11 tools
+  2026-09-22 17:44  e5f6a7b8…  A   3 turns, 7 tools
+Trend (first → last): improved — 2 improved, 0 regressed, 1 flat.
+```
+
+`/eval-history` finds the sessions for you via the same `sessionQuery` seam `/archive` uses (scoped to the current workspace's `cwd`), grades each, and diffs the first against the last. `/eval-diff` remains the tool when you already know the two ids that matter.
 
 ## Dimensions & thresholds
 
@@ -105,6 +122,8 @@ Same session logs in → same grade card out, every time, forever. There is no m
 | `/eval --json` | Machine-readable metrics + card |
 | `/eval-diff <beforeId> <afterId>` | Regression comparison, noise-tolerant |
 | `/eval-diff … --json` | Machine-readable trend report |
+| `/eval-history [N]` | Grade the last N sessions in this workspace and show the trend |
+| `/eval-history … --json` | Machine-readable history report |
 
 ## Development
 

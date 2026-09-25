@@ -14,6 +14,7 @@ import { adaptEvents, computeMetrics } from './metrics.ts'
 import { gradeSession } from './grade.ts'
 import { compareSessions } from './trend.ts'
 import type { GradeCard, TrendReport } from './types.ts'
+import { VERSION } from './version.ts'
 
 export const EVAL_USAGE = 'Usage: /eval [--id <sessionId>] [--json]'
 export const EVAL_DIFF_USAGE = 'Usage: /eval-diff <beforeSessionId> <afterSessionId> [--json]'
@@ -141,9 +142,9 @@ export async function executeEval(
   const card = gradeSession(metrics)
 
   if (parsed.json === true) {
-    return { kind: 'success', text: JSON.stringify({ generator: 'dsh-session-eval v0.1.0', metrics, card }, null, 2) }
+    return { kind: 'success', text: JSON.stringify({ generator: 'dsh-session-eval v' + VERSION, metrics, card }, null, 2) }
   }
-  return { kind: 'success', text: renderCard(card, 'dsh-session-eval v0.1.0') }
+  return { kind: 'success', text: renderCard(card, 'dsh-session-eval v' + VERSION) }
 }
 
 /** Execute /eval-diff against the session-query seam. */
@@ -165,7 +166,7 @@ export async function executeEvalDiff(
   const report = compareSessions(before, after)
 
   if (parsed.json === true) {
-    return { kind: 'success', text: JSON.stringify({ generator: 'dsh-session-eval v0.1.0', report }, null, 2) }
+    return { kind: 'success', text: JSON.stringify({ generator: 'dsh-session-eval v' + VERSION, report }, null, 2) }
   }
-  return { kind: 'success', text: renderTrend(report, 'dsh-session-eval v0.1.0') }
+  return { kind: 'success', text: renderTrend(report, 'dsh-session-eval v' + VERSION) }
 }

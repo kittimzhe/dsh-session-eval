@@ -1,7 +1,7 @@
 {
   "name": "dsh-session-eval",
   "description": "Retrospective agent-session evaluation for DeepSeek Harness: deterministic grade cards from persisted session logs, cross-session regression diffs, era comparison — no benchmark runs, no LLM judges.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publishConfig": {
     "access": "public"
   },

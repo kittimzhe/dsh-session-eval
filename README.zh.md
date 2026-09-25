@@ -37,7 +37,11 @@ npm install -g dsh-session-eval
 /eval                 # 当前会话等级卡
 /eval --id <会话ID>    # 指定会话
 /eval-diff <前> <后>   # 回归对比（换插件/prompt 前后各评一次）
+/eval-history         # 本工作区最近 5 个会话的成绩单 + 首末趋势
+/eval-history 12      # 最近 12 个
 ```
+
+`/eval-history` 通过与 `/archive` 相同的 `sessionQuery` 接缝自动找到会话（按当前工作区 `cwd` 过滤），逐个评级，并把首尾两个会话做趋势对比——不用再手动挑 id。
 
 ## 维度与阈值（确定性，无裁判）
 

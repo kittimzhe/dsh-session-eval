@@ -11,12 +11,14 @@
  * Commands (via ctx.commands):
  * - `/eval`   — grade card for the current session (or another via --id)
  * - `/eval-diff <beforeId> <afterId>` — regression comparison of two sessions
+ * - `/eval-history [N]` — grade the last N sessions in this workspace and show the trend
  *
  * Both read through the trusted ctx.sessionQuery seam, so any persistence
  * backend (JSONL or SQLite) works without touching raw artifacts.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { executeEval, executeEvalDiff, EVAL_USAGE, EVAL_DIFF_USAGE } from './evalCommand.ts'
+import { executeEvalHistory, EVAL_HISTORY_USAGE } from './historyCommand.ts'
 
 export const name = 'session-eval'
 export const inject = ['commands', 'sessionQuery']
@@ -25,10 +27,13 @@ export { computeMetrics, adaptEvents } from './metrics.ts'
 export { gradeSession } from './grade.ts'
 export { compareSessions } from './trend.ts'
 export { parseEvalArgs, parseEvalDiffArgs, executeEval, executeEvalDiff, renderCard, renderTrend, id8, EVAL_USAGE, EVAL_DIFF_USAGE } from './evalCommand.ts'
+export { parseEvalHistoryArgs, executeEvalHistory, renderHistory, EVAL_HISTORY_USAGE } from './historyCommand.ts'
 export type { EvalArgs, EvalDiffArgs } from './evalCommand.ts'
+export type { EvalHistoryArgs, HistoryEntry, HistoryReport, HistorySeam } from './historyCommand.ts'
 export type { EvalEvent, EvalEventKind, SessionMetrics, Grade, DimensionGrade, GradeCard, DimensionDelta, TrendReport } from './types.ts'
+export { VERSION } from './version.ts'
 
-/** Plugin entry: mount the /eval and /eval-diff commands. */
+/** Plugin entry: mount the /eval, /eval-diff and /eval-history commands. */
 export function apply(ctx: Context): void {
   ctx.effect(
     function* () {
@@ -41,6 +46,11 @@ export function apply(ctx: Context): void {
         name: 'eval-diff',
         description: 'Compare two sessions (before, after) and report which dimensions improved or regressed',
         handler: (invocation) => executeEvalDiff(ctx, invocation),
+      })
+      yield ctx.commands.register({
+        name: 'eval-history',
+        description: 'Grade the last N sessions in this workspace (default 5) and show whether the trend is improving',
+        handler: (invocation) => executeEvalHistory(ctx, invocation),
       })
     },
     'session-eval lifecycle',
