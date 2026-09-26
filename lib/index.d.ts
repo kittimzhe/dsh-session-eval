@@ -132,10 +132,57 @@ declare function executeEval(ctx: Context, invocation: CommandInvocation, seam?:
 /** Execute /eval-diff against the session-query seam. */
 declare function executeEvalDiff(ctx: Context, invocation: CommandInvocation, seam?: QuerySeam): Promise<CommandResult>;
 //#endregion
+//#region src/historyCommand.d.ts
+declare const EVAL_HISTORY_USAGE = "Usage: /eval-history [N] [--json]  (N = last N sessions, 1-20, default 5)";
+/** Args for /eval-history. */
+interface EvalHistoryArgs {
+  readonly count: number;
+  readonly json: boolean;
+}
+/** Parse /eval-history input; returns args or a usage-error string. */
+declare function parseEvalHistoryArgs(rawInput: string): EvalHistoryArgs | string;
+/** One graded session in a history report. */
+interface HistoryEntry {
+  readonly sessionId: string;
+  readonly createdAt: number | null;
+  readonly metrics: SessionMetrics;
+  readonly card: GradeCard;
+}
+/** The full /eval-history report. */
+interface HistoryReport {
+  readonly entries: readonly HistoryEntry[];
+  readonly trend: TrendReport | null;
+}
+/** The slice of sessionQuery this command consumes (structural, for testability). */
+interface HistorySeam {
+  listSessions(): Promise<ReadonlyArray<{
+    header: {
+      id: unknown;
+      createdAt: unknown;
+      cwd?: unknown;
+    };
+  }>>;
+  readSession(id: ReturnType<typeof SessionId>): Promise<{
+    events: readonly unknown[];
+  }>;
+}
+/** Render a history report as terminal text. */
+declare function renderHistory(report: HistoryReport): string;
+/** Execute /eval-history against the session-query seam. */
+declare function executeEvalHistory(ctx: Context, invocation: CommandInvocation, seam?: HistorySeam): Promise<CommandResult>;
+//#endregion
+//#region src/version.d.ts
+/**
+ * Single source of truth for the plugin version string.
+ *
+ * @module dsh-session-eval/version
+ */
+declare const VERSION = "0.2.1";
+//#endregion
 //#region src/index.d.ts
 declare const name = "session-eval";
 declare const inject: string[];
-/** Plugin entry: mount the /eval and /eval-diff commands. */
+/** Plugin entry: mount the /eval, /eval-diff and /eval-history commands. */
 declare function apply(ctx: Context): void;
 //#endregion
-export { type DimensionDelta, type DimensionGrade, EVAL_DIFF_USAGE, EVAL_USAGE, type EvalArgs, type EvalDiffArgs, type EvalEvent, type EvalEventKind, type Grade, type GradeCard, type SessionMetrics, type TrendReport, adaptEvents, apply, compareSessions, computeMetrics, executeEval, executeEvalDiff, gradeSession, id8, inject, name, parseEvalArgs, parseEvalDiffArgs, renderCard, renderTrend };
+export { type DimensionDelta, type DimensionGrade, EVAL_DIFF_USAGE, EVAL_HISTORY_USAGE, EVAL_USAGE, type EvalArgs, type EvalDiffArgs, type EvalEvent, type EvalEventKind, type EvalHistoryArgs, type Grade, type GradeCard, type HistoryEntry, type HistoryReport, type HistorySeam, type SessionMetrics, type TrendReport, VERSION, adaptEvents, apply, compareSessions, computeMetrics, executeEval, executeEvalDiff, executeEvalHistory, gradeSession, id8, inject, name, parseEvalArgs, parseEvalDiffArgs, parseEvalHistoryArgs, renderCard, renderHistory, renderTrend };

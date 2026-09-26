@@ -1,0 +1,6 @@
+# The dsh-session-eval bundle patch: mounts /eval, /eval-diff, and /eval-history.
+# Applied as one insert; requires `commands` and `sessionQuery` services,
+# which the shipped dsh-base / web bundles already provide.
+- insert:
+    - id: session-eval
+      name: 'dsh-session-eval'
