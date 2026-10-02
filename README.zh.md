@@ -74,6 +74,8 @@ Notes:
 | `/eval-history [N]` | 本工作区最近 N 个会话成绩单 + 首末趋势 |
 | `/eval-history … --json` | 机器可读历史报告 |
 
+使用 `/eval-history --out report.md` 将终端卡片保存为 Markdown，添加 `--json` 则保存 JSON。相对路径基于当前会话工作目录（缺失时使用进程工作目录）。父目录必须已存在；写入失败会返回错误，不会创建目录。已存在的输出文件会被覆盖。
+
 `/eval-history` 通过与 `/archive` 相同的 `sessionQuery` 接缝自动找到会话（按当前工作区 `cwd` 过滤），逐个评级，并把首尾两个会话做趋势对比——不用再手动挑 id。已经知道两个关键 id 时用 `/eval-diff`。
 
 典型用法：换插件或 prompt 前后各评十个会话；`Reliability` 持续回归 = 改动伤害了真实工作的早期预警。

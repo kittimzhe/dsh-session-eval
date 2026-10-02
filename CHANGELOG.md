@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add `/eval-history --out PATH` for Markdown and JSON report files.
+
 ## 0.2.1 — 2026-09-26
 
 - **Fix: ship the bundle overlay.** v0.2.0 declared `dsh.bundle.patch: ./cordis.patch.yml`
