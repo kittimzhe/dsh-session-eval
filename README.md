@@ -75,6 +75,8 @@ Both are useful; they don't compete. Benchmarks test what you *predicted*; retro
 | `/eval-history [N]` | Grade the last N sessions in this workspace and show the trend |
 | `/eval-history … --json` | Machine-readable history report |
 
+Use `/eval-history --out report.md` to save the terminal card as Markdown, or add `--json` to save the JSON payload. Relative paths resolve against the current session workspace (the process working directory when unavailable). Parent directories must already exist; file errors are reported without creating directories. Existing output files are overwritten.
+
 `/eval-history` finds the sessions for you via the same `sessionQuery` seam `/archive` uses (scoped to the current workspace's `cwd`), grades each, and diffs the first against the last. `/eval-diff` remains the tool when you already know the two ids that matter.
 
 Typical use: grade the ten sessions before and after a plugin or prompt change; a persistent `Reliability` regression is an early warning that the change hurt real work, not just benchmarks.

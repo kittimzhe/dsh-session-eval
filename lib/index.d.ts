@@ -133,11 +133,12 @@ declare function executeEval(ctx: Context, invocation: CommandInvocation, seam?:
 declare function executeEvalDiff(ctx: Context, invocation: CommandInvocation, seam?: QuerySeam): Promise<CommandResult>;
 //#endregion
 //#region src/historyCommand.d.ts
-declare const EVAL_HISTORY_USAGE = "Usage: /eval-history [N] [--json]  (N = last N sessions, 1-20, default 5)";
+declare const EVAL_HISTORY_USAGE = "Usage: /eval-history [N] [--json] [--out PATH]  (N = last N sessions, 1-20, default 5)";
 /** Args for /eval-history. */
 interface EvalHistoryArgs {
   readonly count: number;
   readonly json: boolean;
+  readonly out?: string;
 }
 /** Parse /eval-history input; returns args or a usage-error string. */
 declare function parseEvalHistoryArgs(rawInput: string): EvalHistoryArgs | string;
