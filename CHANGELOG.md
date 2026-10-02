@@ -9,6 +9,10 @@ Docs polish round (no runtime changes).
 
 # Changelog
 
+## Unreleased
+
+- Add `/eval-history --out PATH` for Markdown and JSON report files.
+
 ## 0.2.2 — 2026-10-02
 
 Contributor-first docs release.

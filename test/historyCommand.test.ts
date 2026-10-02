@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm, access } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { executeEvalHistory, parseEvalHistoryArgs, renderHistory } from '../src/historyCommand.ts'
 import { VERSION } from '../src/version.ts'
@@ -143,5 +146,58 @@ describe('executeEvalHistory', () => {
 describe('renderHistory', () => {
   it('renders a friendly line for empty input', () => {
     expect(renderHistory({ entries: [], trend: null })).toContain('No sessions found')
+  })
+})
+
+
+describe('history report files', () => {
+  it('parses output paths in either flag order and rejects missing or repeated paths', () => {
+    expect(parseEvalHistoryArgs('--out report.md 2 --json')).toEqual({ count: 2, json: true, out: 'report.md' })
+    expect(parseEvalHistoryArgs('--json 2 --out report.json')).toEqual({ count: 2, json: true, out: 'report.json' })
+    for (const input of ['--out', '--out --json', '--out a --out b']) {
+      expect(typeof parseEvalHistoryArgs(input)).toBe('string')
+    }
+  })
+
+  it('writes Markdown relative to session cwd while keeping the terminal card', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'eval-history-'))
+    try {
+      const headers = HEADERS.slice(1).map((header) => ({ ...header, cwd }))
+      const seam = makeSeam(headers, LOGS)
+      const result = await executeEvalHistory({} as never, invocation('--out report.md', cwd), seam as never)
+      const baseline = await executeEvalHistory({} as never, invocation('', cwd), seam as never)
+      expect(result).toEqual(baseline)
+      expect(result.kind).toBe('success')
+      expect(await readFile(join(cwd, 'report.md'), 'utf8')).toBe(`\`\`\`text\n${(result as { text: string }).text}\n\`\`\`\n`)
+      expect((result as { text: string }).text).toContain('Session history — last 3')
+    } finally {
+      await rm(cwd, { recursive: true, force: true })
+    }
+  })
+
+  it('writes the same JSON payload to an absolute path, including empty workspaces', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'eval-history-'))
+    try {
+      const path = join(cwd, 'report.json')
+      const result = await executeEvalHistory({} as never, invocation(`--json --out ${path}`, '/empty'), makeSeam([], {}) as never)
+      expect(result.kind).toBe('success')
+      const text = (result as { text: string }).text
+      expect(await readFile(path, 'utf8')).toBe(`${text}\n`)
+      expect(JSON.parse(text).report).toEqual({ entries: [], trend: null })
+    } finally {
+      await rm(cwd, { recursive: true, force: true })
+    }
+  })
+
+  it('returns a useful error without creating missing parent directories', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'eval-history-'))
+    try {
+      const result = await executeEvalHistory({} as never, invocation('--out missing/report.md', cwd), makeSeam([], {}) as never)
+      expect(result.kind).toBe('error')
+      expect((result as { text: string }).text).toContain('Could not write history report')
+      await expect(access(join(cwd, 'missing'))).rejects.toThrow()
+    } finally {
+      await rm(cwd, { recursive: true, force: true })
+    }
   })
 })

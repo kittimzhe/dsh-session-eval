@@ -8,6 +8,8 @@
  *
  * @module dsh-session-eval/historyCommand
  */
+import { writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import type { Context } from '@deepseek-ai/cordis'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -18,12 +20,13 @@ import { id8 } from './evalCommand.ts'
 import { VERSION } from './version.ts'
 import type { Grade, GradeCard, SessionMetrics, TrendReport } from './types.ts'
 
-export const EVAL_HISTORY_USAGE = 'Usage: /eval-history [N] [--json]  (N = last N sessions, 1-20, default 5)'
+export const EVAL_HISTORY_USAGE = 'Usage: /eval-history [N] [--json] [--out PATH]  (N = last N sessions, 1-20, default 5)'
 
 /** Args for /eval-history. */
 export interface EvalHistoryArgs {
   readonly count: number
   readonly json: boolean
+  readonly out?: string
 }
 
 /** Parse /eval-history input; returns args or a usage-error string. */
@@ -32,7 +35,16 @@ export function parseEvalHistoryArgs(rawInput: string): EvalHistoryArgs | string
   let count = 5
   let json = false
   let sawCount = false
-  for (const token of tokens) {
+  let out: string | undefined
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!
+    if (token === '--out') {
+      if (out !== undefined) return `--out may be given only once.\n${EVAL_HISTORY_USAGE}`
+      const path = tokens[++i]
+      if (!path || path.startsWith('--')) return `--out requires a path.\n${EVAL_HISTORY_USAGE}`
+      out = path
+      continue
+    }
     if (token === '--json') {
       if (json) return `--json may be given only once.\n${EVAL_HISTORY_USAGE}`
       json = true
@@ -46,7 +58,7 @@ export function parseEvalHistoryArgs(rawInput: string): EvalHistoryArgs | string
     count = value
     sawCount = true
   }
-  return { count, json }
+  return { count, json, ...(out !== undefined ? { out } : {}) }
 }
 
 /** One graded session in a history report. */
@@ -133,9 +145,6 @@ export async function executeEvalHistory(
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))
 
   const recent = headers.slice(-parsed.count)
-  if (recent.length === 0) {
-    return { kind: 'success', text: 'No sessions found in this workspace; nothing to grade.' }
-  }
 
   const entries: HistoryEntry[] = []
   for (const header of recent) {
@@ -153,10 +162,19 @@ export async function executeEvalHistory(
   const trend = entries.length >= 2 ? compareSessions(entries[0]!.metrics, entries[entries.length - 1]!.metrics) : null
   const report: HistoryReport = { entries, trend }
 
-  if (parsed.json === true) {
-    return { kind: 'success', text: JSON.stringify({ generator: `dsh-session-eval v${VERSION}`, report }, null, 2) }
+  const text = parsed.json
+    ? JSON.stringify({ generator: `dsh-session-eval v${VERSION}`, report }, null, 2)
+    : renderHistory(report)
+  if (parsed.out !== undefined) {
+    const path = resolve(typeof ownCwd === 'string' ? ownCwd : process.cwd(), parsed.out)
+    try {
+      const output = parsed.json ? text : `\`\`\`text\n${text}\n\`\`\``
+      await writeFile(path, `${output}\n`, 'utf8')
+    } catch (error) {
+      return { kind: 'error', text: `Could not write history report to ${path}: ${error instanceof Error ? error.message : String(error)}` }
+    }
   }
-  return { kind: 'success', text: renderHistory(report) }
+  return { kind: 'success', text }
 }
 
 // gradeIndex is exported for tests that want to assert ordering without depending on render internals.
