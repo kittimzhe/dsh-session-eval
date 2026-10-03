@@ -9,6 +9,8 @@ Contributor-first docs release.
 - Skeleton: one-liner → install → try-once → toolchain table → 6-line contributor block.
 - CONTRIBUTING.md (with source map), SECURITY.md, CODE_OF_CONDUCT.md added; GitHub topics set.
 - Docs no longer hardcode test counts.
+- Install details (GitHub route + `cordis.patch.yml`), Development/Community footers, and issue links #1–#3 added for parity with the sibling plugins.
+- GitHub issue templates (`bug_report`, `feature_request`) added.
 
 
 ## 0.2.1 — 2026-09-26

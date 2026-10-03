@@ -3,6 +3,7 @@
 [English](README.md) | 中文
 
 [![npm](https://img.shields.io/npm/v/dsh-session-eval)](https://www.npmjs.com/package/dsh-session-eval)
+[![npm downloads](https://img.shields.io/npm/dw/dsh-session-eval)](https://www.npmjs.com/package/dsh-session-eval)
 [![tests](https://github.com/kittimzhe/dsh-session-eval/actions/workflows/test.yml/badge.svg)](https://github.com/kittimzhe/dsh-session-eval/actions/workflows/test.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -12,8 +13,24 @@
 
 ## 安装
 
+**环境要求**：Node.js 20 或 22 · 挂载了 `commands` 与 `sessionQuery` 服务的 DeepSeek Harness profile（官方 `web` / `agent` profile 均满足）。
+
 ```bash
 dsh plugin --profile web add dsh-session-eval
+```
+
+或从 GitHub：
+
+```bash
+dsh plugin --profile web add github:kittimzhe/dsh-session-eval
+```
+
+bundle 覆盖层会挂上 `/eval`、`/eval-diff`、`/eval-history`。若你维护自己的 `cordis.patch.yml`，请保留这一行：
+
+```yaml
+- insert:
+    - id: session-eval
+      name: 'dsh-session-eval'
 ```
 
 ## 试一次
@@ -25,7 +42,7 @@ dsh plugin --profile web add dsh-session-eval
 ```
 
 ```text
-Session eval — a1b2c3d4… (dsh-session-eval v0.2.1)
+Session eval — a1b2c3d4… (dsh-session-eval v0.2.2)
 Overall: A
   Reliability   A    2/87 tool results errored (2.3%)
   Re-ask        A    1 re-ask signal(s) over 23 turns (0.4/10 turns)
@@ -48,7 +65,7 @@ Notes:
 
 - **本地开发**：`npm ci && npm run typecheck && npm test && npm run bundle`（Node 20 或 22）。
 - **源码入口**：[`src/grade.ts`](src/grade.ts)（阈值与等级卡）、[`src/metrics.ts`](src/metrics.ts)（指标提取）、[`src/trend.ts`](src/trend.ts)（`/eval-history` 趋势逻辑）。源码地图与第一次 PR 建议见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-- **当前缺口**：阈值可配置、`/eval-history` 过滤条件扩展、趋势导出——见 [`good first issue` 标签的 issue](https://github.com/kittimzhe/dsh-session-eval/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)。
+- **当前缺口**：[#1](https://github.com/kittimzhe/dsh-session-eval/issues/1)（阈值可配置）、[#2](https://github.com/kittimzhe/dsh-session-eval/issues/2)（`/eval-history --since`）、[#3](https://github.com/kittimzhe/dsh-session-eval/issues/3)（`/eval-history --out`）——或浏览 [`good first issue` 标签](https://github.com/kittimzhe/dsh-session-eval/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)。
 - **规矩**：行为变更必须带测试；文档必须 `README.md` 与 `README.zh.md` 同步改；版本发布由维护者执行。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 与基准式评测（dsh-eval）的区别
@@ -96,6 +113,19 @@ Diff 判定带噪声带（错误率 ±2pp、Re-ask ±0.5、工具负载 ±1）�
 
 同样的日志进 → 同样的等级出。没有模型在环、没有采样、指标不含时钟依赖（wall time 只报告不评级）。这是 `/eval-diff` 能作为回归信号被信任的原因。
 
+## 开发
+
+```bash
+npm ci
+npm run typecheck   # tsc --noEmit
+npm test            # vitest run
+npm run bundle      # tsdown → lib/
+```
+
 ## 许可
 
 [MIT](LICENSE)
+
+## 社区
+
+- [贡献指南](CONTRIBUTING.md) · [安全策略](SECURITY.md) · [行为准则](CODE_OF_CONDUCT.md)

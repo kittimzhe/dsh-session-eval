@@ -13,8 +13,24 @@ No benchmark suites to author. No LLM judges. No new runs. Every grade is a fixe
 
 ## Install
 
+**Requirements**: Node.js 20 or 22 · a DeepSeek Harness profile that mounts the `commands` and `sessionQuery` services (the shipped `web` / `agent` profiles qualify).
+
 ```bash
 dsh plugin --profile web add dsh-session-eval
+```
+
+Or from GitHub:
+
+```bash
+dsh plugin --profile web add github:kittimzhe/dsh-session-eval
+```
+
+The bundle overlay mounts `/eval`, `/eval-diff`, and `/eval-history`. If you maintain your own `cordis.patch.yml`, keep this row:
+
+```yaml
+- insert:
+    - id: session-eval
+      name: 'dsh-session-eval'
 ```
 
 ## Try it once
@@ -26,7 +42,7 @@ In DeepSeek Harness:
 ```
 
 ```text
-Session eval — a1b2c3d4… (dsh-session-eval v0.2.1)
+Session eval — a1b2c3d4… (dsh-session-eval v0.2.2)
 Overall: A
   Reliability   A    2/87 tool results errored (2.3%)
   Re-ask        A    1 re-ask signal(s) over 23 turns (0.4/10 turns)
@@ -49,7 +65,7 @@ All three read through the same trusted `ctx.sessionQuery` seam, so any persiste
 
 - **Local dev**: `npm ci && npm run typecheck && npm test && npm run bundle` (Node 20 or 22).
 - **Start in the source**: [`src/grade.ts`](src/grade.ts) (thresholds, grade cards), [`src/metrics.ts`](src/metrics.ts) (metric extraction), [`src/trend.ts`](src/trend.ts) (`/eval-history` trend logic). See [CONTRIBUTING.md](CONTRIBUTING.md) for the source map and first-PR suggestions.
-- **Open gaps**: threshold configurability, wider `/eval-history` filters, trend export — tracked in [issues labeled `good first issue`](https://github.com/kittimzhe/dsh-session-eval/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+- **Open gaps**: [#1](https://github.com/kittimzhe/dsh-session-eval/issues/1) (configurable thresholds), [#2](https://github.com/kittimzhe/dsh-session-eval/issues/2) (`/eval-history --since`), [#3](https://github.com/kittimzhe/dsh-session-eval/issues/3) (`/eval-history --out`) — or browse [issues labeled `good first issue`](https://github.com/kittimzhe/dsh-session-eval/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
 - **Rules**: behavior changes need tests; doc changes must update `README.md` and `README.zh.md` in sync; version releases belong to the maintainer. Details: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## How it differs from benchmark-style evaluation
@@ -99,6 +115,19 @@ Diff verdicts include a noise band (±2pp error rate, ±0.5 re-ask, ±1 tool loa
 
 Same session logs in → same grade card out, every time, forever. There is no model in the loop, no sampling, no clock dependence in the metrics (wall time is reported, never graded). This is what makes `/eval-diff` trustworthy as a regression signal.
 
+## Development
+
+```bash
+npm ci
+npm run typecheck   # tsc --noEmit
+npm test            # vitest run
+npm run bundle      # tsdown → lib/
+```
+
 ## License
 
 [MIT](LICENSE)
+
+## Community
+
+- [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
