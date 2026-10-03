@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.2 — 2026-10-02
+
+Contributor-first docs release.
+
+- Install command fixed to `dsh plugin --profile web add dsh-session-eval` (a global npm install does not mount the slash commands).
+- README.zh.md language switch fixed (English link restored, toggle on top); sample outputs bumped to the shipped version.
+- Skeleton: one-liner → install → try-once → toolchain table → 6-line contributor block.
+- CONTRIBUTING.md (with source map), SECURITY.md, CODE_OF_CONDUCT.md added; GitHub topics set.
+- Docs no longer hardcode test counts.
+
+
 ## 0.2.1 — 2026-09-26
 
 - **Fix: ship the bundle overlay.** v0.2.0 declared `dsh.bundle.patch: ./cordis.patch.yml`
