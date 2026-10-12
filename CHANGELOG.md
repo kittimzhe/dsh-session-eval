@@ -1,3 +1,12 @@
+## 0.2.4 — 2026-10-11
+
+Feature release: eval-history report files.
+
+- New: `/eval-history --out PATH[.md|.json]` writes the history report to a Markdown or JSON file instead of only echoing it (contributed by @varshith84 in #4, merged as 117f918 after a maintainer rebase).
+
+# Changelog
+
+
 ## 0.2.3 — 2026-10-03
 
 Docs polish round (no runtime changes).
@@ -6,12 +15,6 @@ Docs polish round (no runtime changes).
 - Contributor block links the open-gap issues directly; sample outputs aligned with the shipped version.
 - Community section; bilingual issue templates (`.github/ISSUE_TEMPLATE/`).
 - English/Chinese README sections kept in sync.
-
-# Changelog
-
-## Unreleased
-
-- Add `/eval-history --out PATH` for Markdown and JSON report files.
 
 ## 0.2.2 — 2026-10-02
 
