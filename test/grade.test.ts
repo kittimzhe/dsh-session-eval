@@ -88,3 +88,34 @@ describe('gradeSession', () => {
     expect(card.overall).toBe('D')
   })
 })
+
+describe('gradeSession with custom bands (#1)', () => {
+  // 32% tool error rate: default D (<=0.35), custom [4,8,15,30]% → E (>30%)
+  it('grades reliability against the configured bands, not the defaults', () => {
+    const events: EvalEvent[] = [
+      ...Array.from({ length: 25 }, (_, i) => [
+        { seq: i * 2, time: i * 10, kind: 'tool_call' as const, tool: 'bash' },
+        { seq: i * 2 + 1, time: i * 10 + 1, kind: 'tool_result' as const, tool: 'bash', isError: i < 8 },
+      ]).flat(),
+    ]
+    const m = computeMetrics('session-bands', events)
+    const dim = (card: ReturnType<typeof gradeSession>) => card.dimensions.find((d) => d.dimension === 'Reliability')!
+    expect(dim(gradeSession(m)).grade).toBe('D')
+    expect(dim(gradeSession(m, { reliability: [0.04, 0.08, 0.15, 0.3] })).grade).toBe('E')
+    expect(dim(gradeSession(m, { reliability: [0.05, 0.2, 0.4, 0.7] })).grade).toBe('C')
+  })
+
+  it('grades tool load against configured bands on both sides', () => {
+    const events: EvalEvent[] = [
+      { seq: 0, time: 0, kind: 'user' },
+      ...Array.from({ length: 10 }, (_, i) => [
+        { seq: i * 2 + 1, time: i * 10, kind: 'tool_call' as const, tool: 'bash' },
+        { seq: i * 2 + 2, time: i * 10 + 1, kind: 'tool_result' as const, tool: 'bash' },
+      ]).flat(),
+    ]
+    const m = computeMetrics('session-load', events)
+    const dim = (card: ReturnType<typeof gradeSession>) => card.dimensions.find((d) => d.dimension === 'Tool load')!
+    expect(dim(gradeSession(m)).grade).toBe('C')
+    expect(dim(gradeSession(m, { toolLoad: [0.2, 0.6, 4, 8] })).grade).toBe('D')
+  })
+})

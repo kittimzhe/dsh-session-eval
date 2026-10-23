@@ -92,8 +92,23 @@ declare function computeMetrics(sessionId: string, events: readonly EvalEvent[])
 declare function adaptEvents(raw: readonly unknown[]): EvalEvent[];
 //#endregion
 //#region src/grade.d.ts
-/** Grade one session deterministically. */
-declare function gradeSession(m: SessionMetrics): GradeCard;
+/**
+ * Grade bands per dimension, overridable from the plugin config (#1).
+ * Each array holds the A/B/C/D upper bounds in ascending order; anything
+ * above the D bound grades E. Reliability bounds are error-rate fractions,
+ * re-ask bounds are corrections per 10 user turns, tool-load bounds are
+ * calls per turn as [lowC, lowB, highC, highD].
+ */
+interface GradeBands {
+  readonly reliability: readonly [number, number, number, number];
+  readonly reask: readonly [number, number, number, number];
+  readonly toolLoad: readonly [number, number, number, number];
+}
+/**
+ * Grade one session deterministically. `bands` may override any subset of
+ * the dimensions; unspecified ones keep the documented defaults.
+ */
+declare function gradeSession(m: SessionMetrics, bands?: Partial<GradeBands>): GradeCard;
 //#endregion
 //#region src/trend.d.ts
 /** Compare two sessions dimension by dimension. */
@@ -128,17 +143,22 @@ interface QuerySeam {
   }>;
 }
 /** Execute /eval against the session-query seam. */
-declare function executeEval(ctx: Context, invocation: CommandInvocation, seam?: QuerySeam): Promise<CommandResult>;
+declare function executeEval(ctx: Context, invocation: CommandInvocation, seam?: QuerySeam, bands?: Partial<GradeBands>): Promise<CommandResult>;
 /** Execute /eval-diff against the session-query seam. */
 declare function executeEvalDiff(ctx: Context, invocation: CommandInvocation, seam?: QuerySeam): Promise<CommandResult>;
 //#endregion
 //#region src/historyCommand.d.ts
-declare const EVAL_HISTORY_USAGE = "Usage: /eval-history [N] [--json] [--out PATH]  (N = last N sessions, 1-20, default 5)";
+declare const EVAL_HISTORY_USAGE = "Usage: /eval-history [N] [--json] [--out PATH] [--since 24h|7d|30d]  (N = last N sessions, 1-20, default 5; --since grades only sessions whose latest activity falls inside the window)";
 /** Args for /eval-history. */
 interface EvalHistoryArgs {
   readonly count: number;
   readonly json: boolean;
   readonly out?: string;
+  /** Time window from --since; grades only sessions whose latest activity falls inside. */
+  readonly since?: {
+    label: string;
+    ms: number;
+  };
 }
 /** Parse /eval-history input; returns args or a usage-error string. */
 declare function parseEvalHistoryArgs(rawInput: string): EvalHistoryArgs | string;
@@ -153,6 +173,8 @@ interface HistoryEntry {
 interface HistoryReport {
   readonly entries: readonly HistoryEntry[];
   readonly trend: TrendReport | null;
+  /** The --since label this report was filtered by, if any. */
+  readonly sinceLabel?: string;
 }
 /** The slice of sessionQuery this command consumes (structural, for testability). */
 interface HistorySeam {
@@ -170,7 +192,7 @@ interface HistorySeam {
 /** Render a history report as terminal text. */
 declare function renderHistory(report: HistoryReport): string;
 /** Execute /eval-history against the session-query seam. */
-declare function executeEvalHistory(ctx: Context, invocation: CommandInvocation, seam?: HistorySeam): Promise<CommandResult>;
+declare function executeEvalHistory(ctx: Context, invocation: CommandInvocation, seam?: HistorySeam, bands?: Partial<GradeBands>): Promise<CommandResult>;
 //#endregion
 //#region src/version.d.ts
 /**
@@ -178,12 +200,18 @@ declare function executeEvalHistory(ctx: Context, invocation: CommandInvocation,
  *
  * @module dsh-session-eval/version
  */
-declare const VERSION = "0.2.4";
+declare const VERSION = "0.3.0";
 //#endregion
 //#region src/index.d.ts
 declare const name = "session-eval";
 declare const inject: string[];
-/** Plugin entry: mount the /eval, /eval-diff and /eval-history commands. */
-declare function apply(ctx: Context): void;
+/**
+ * Plugin entry: mount the /eval, /eval-diff and /eval-history commands.
+ *
+ * `config` is the plugin's node in the host config tree (per-profile): its
+ * `gradeBands` block overrides the default grade thresholds — see config.ts.
+ * Invalid config fails fast here, at plugin load, rather than mid-grade.
+ */
+declare function apply(ctx: Context, config?: unknown): void;
 //#endregion
 export { type DimensionDelta, type DimensionGrade, EVAL_DIFF_USAGE, EVAL_HISTORY_USAGE, EVAL_USAGE, type EvalArgs, type EvalDiffArgs, type EvalEvent, type EvalEventKind, type EvalHistoryArgs, type Grade, type GradeCard, type HistoryEntry, type HistoryReport, type HistorySeam, type SessionMetrics, type TrendReport, VERSION, adaptEvents, apply, compareSessions, computeMetrics, executeEval, executeEvalDiff, executeEvalHistory, gradeSession, id8, inject, name, parseEvalArgs, parseEvalDiffArgs, parseEvalHistoryArgs, renderCard, renderHistory, renderTrend };

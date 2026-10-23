@@ -19,6 +19,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { executeEval, executeEvalDiff, EVAL_USAGE, EVAL_DIFF_USAGE } from './evalCommand.ts'
 import { executeEvalHistory, EVAL_HISTORY_USAGE } from './historyCommand.ts'
+import { parseGradeBands } from './config.ts'
 
 export const name = 'session-eval'
 export const inject = ['commands', 'sessionQuery']
@@ -33,14 +34,21 @@ export type { EvalHistoryArgs, HistoryEntry, HistoryReport, HistorySeam } from '
 export type { EvalEvent, EvalEventKind, SessionMetrics, Grade, DimensionGrade, GradeCard, DimensionDelta, TrendReport } from './types.ts'
 export { VERSION } from './version.ts'
 
-/** Plugin entry: mount the /eval, /eval-diff and /eval-history commands. */
-export function apply(ctx: Context): void {
+/**
+ * Plugin entry: mount the /eval, /eval-diff and /eval-history commands.
+ *
+ * `config` is the plugin's node in the host config tree (per-profile): its
+ * `gradeBands` block overrides the default grade thresholds — see config.ts.
+ * Invalid config fails fast here, at plugin load, rather than mid-grade.
+ */
+export function apply(ctx: Context, config?: unknown): void {
+  const bands = parseGradeBands(config)
   ctx.effect(
     function* () {
       yield ctx.commands.register({
         name: 'eval',
         description: 'Print a deterministic grade card for this session (or another via --id): reliability, re-ask, tool load',
-        handler: (invocation) => executeEval(ctx, invocation),
+        handler: (invocation) => executeEval(ctx, invocation, undefined, bands),
       })
       yield ctx.commands.register({
         name: 'eval-diff',
@@ -50,7 +58,7 @@ export function apply(ctx: Context): void {
       yield ctx.commands.register({
         name: 'eval-history',
         description: 'Grade the last N sessions in this workspace (default 5) and show whether the trend is improving',
-        handler: (invocation) => executeEvalHistory(ctx, invocation),
+        handler: (invocation) => executeEvalHistory(ctx, invocation, undefined, bands),
       })
     },
     'session-eval lifecycle',

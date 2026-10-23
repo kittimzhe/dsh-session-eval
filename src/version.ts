@@ -3,4 +3,4 @@
  *
  * @module dsh-session-eval/version
  */
-export const VERSION = '0.2.4'
+export const VERSION = '0.3.0'

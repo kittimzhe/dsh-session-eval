@@ -11,7 +11,7 @@ import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands
 import type { Context } from '@deepseek-ai/cordis'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { adaptEvents, computeMetrics } from './metrics.ts'
-import { gradeSession } from './grade.ts'
+import { gradeSession, type GradeBands } from './grade.ts'
 import { compareSessions } from './trend.ts'
 import type { GradeCard, TrendReport } from './types.ts'
 import { VERSION } from './version.ts'
@@ -130,6 +130,7 @@ export async function executeEval(
   ctx: Context,
   invocation: CommandInvocation,
   seam: QuerySeam = (ctx as unknown as { sessionQuery: QuerySeam }).sessionQuery,
+  bands: Partial<GradeBands> = {},
 ): Promise<CommandResult> {
   const parsed = parseEvalArgs(invocation.rawInput)
   if (typeof parsed === 'string') return { kind: 'error', text: parsed }
@@ -139,7 +140,7 @@ export async function executeEval(
   if (typeof events === 'string') return { kind: 'error', text: events }
 
   const metrics = computeMetrics(sessionIdRaw, adaptEvents(events))
-  const card = gradeSession(metrics)
+  const card = gradeSession(metrics, bands)
 
   if (parsed.json === true) {
     return { kind: 'success', text: JSON.stringify({ generator: 'dsh-session-eval v' + VERSION, metrics, card }, null, 2) }

@@ -1,3 +1,10 @@
+## 0.3.0 — 2026-10-23
+
+Feature release: configurable grade bands (#1) and the history time window (#2).
+
+- New: a `gradeBands` config block overrides the default thresholds for any dimension, per-profile — `reliability` in error-rate percent, `reask` in corrections per 10 user turns, `toolLoad` as `[lowC, lowB, highC, highD]` calls per turn. Invalid config (unknown keys, wrong arity, non-numeric, negative, non-ascending) fails fast at plugin load with a readable error; defaults are unchanged when nothing is configured.
+- New: `/eval-history --since 24h|7d|30d` grades only sessions whose latest activity falls inside the window — filtered by last event time, not creation time. An empty window prints a clear message; without the flag the behavior is exactly as before.
+
 ## 0.2.4 — 2026-10-11
 
 Feature release: eval-history report files.

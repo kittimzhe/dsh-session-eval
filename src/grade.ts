@@ -5,30 +5,29 @@
  */
 import type { DimensionGrade, Grade, GradeCard, SessionMetrics } from './types.ts'
 
-/** Reliability thresholds on tool error rate (fraction). */
-const RELIABILITY: readonly [grade: Grade, max: number][] = [
-  ['A', 0.05],
-  ['B', 0.10],
-  ['C', 0.20],
-  ['D', 0.35],
-]
+/**
+ * Grade bands per dimension, overridable from the plugin config (#1).
+ * Each array holds the A/B/C/D upper bounds in ascending order; anything
+ * above the D bound grades E. Reliability bounds are error-rate fractions,
+ * re-ask bounds are corrections per 10 user turns, tool-load bounds are
+ * calls per turn as [lowC, lowB, highC, highD].
+ */
+export interface GradeBands {
+  readonly reliability: readonly [number, number, number, number]
+  readonly reask: readonly [number, number, number, number]
+  readonly toolLoad: readonly [number, number, number, number]
+}
 
-/** Re-ask thresholds: corrections per 10 user turns. */
-const REASK: readonly [grade: Grade, max: number][] = [
-  ['A', 0],
-  ['B', 1],
-  ['C', 2],
-  ['D', 4],
-]
+/** The documented defaults; unchanged when no config is given. */
+export const DEFAULT_GRADE_BANDS: GradeBands = {
+  reliability: [0.05, 0.10, 0.20, 0.35],
+  reask: [0, 1, 2, 4],
+  toolLoad: [0.1, 0.5, 8, 20],
+}
 
-/** Tool-load thresholds: tool calls per user turn (both churn extremes graded). */
-const TOOL_LOAD_LOW_B = 0.5
-const TOOL_LOAD_LOW_C = 0.1
-const TOOL_LOAD_HIGH_C = 8
-const TOOL_LOAD_HIGH_D = 20
-
-function gradeBy(rate: number, table: readonly [Grade, number][]): Grade {
-  for (const [grade, max] of table) if (rate <= max) return grade
+function gradeBy(rate: number, bands: readonly number[]): Grade {
+  const grades: readonly Grade[] = ['A', 'B', 'C', 'D']
+  for (let i = 0; i < bands.length; i++) if (rate <= bands[i]!) return grades[i]!
   return 'E'
 }
 
@@ -42,8 +41,12 @@ function pct(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`
 }
 
-/** Grade one session deterministically. */
-export function gradeSession(m: SessionMetrics): GradeCard {
+/**
+ * Grade one session deterministically. `bands` may override any subset of
+ * the dimensions; unspecified ones keep the documented defaults.
+ */
+export function gradeSession(m: SessionMetrics, bands: Partial<GradeBands> = {}): GradeCard {
+  const b: GradeBands = { ...DEFAULT_GRADE_BANDS, ...bands }
   const dimensions: DimensionGrade[] = []
   const notes: string[] = []
 
@@ -51,7 +54,7 @@ export function gradeSession(m: SessionMetrics): GradeCard {
     dimensions.push({ dimension: 'Reliability', grade: 'n/a', detail: 'no tool calls' })
     notes.push('Reliability is n/a — the session made no tool calls.')
   } else {
-    const grade = gradeBy(m.toolErrorRate, RELIABILITY)
+    const grade = gradeBy(m.toolErrorRate, b.reliability)
     dimensions.push({
       dimension: 'Reliability',
       grade,
@@ -62,7 +65,7 @@ export function gradeSession(m: SessionMetrics): GradeCard {
   if (m.userTurns === 0) {
     dimensions.push({ dimension: 'Re-ask', grade: 'n/a', detail: 'no user turns' })
   } else {
-    const grade = gradeBy(m.correctionRate, REASK)
+    const grade = gradeBy(m.correctionRate, b.reask)
     dimensions.push({
       dimension: 'Re-ask',
       grade,
@@ -73,12 +76,13 @@ export function gradeSession(m: SessionMetrics): GradeCard {
   if (m.userTurns === 0 || m.toolCalls === 0) {
     dimensions.push({ dimension: 'Tool load', grade: 'n/a', detail: 'no tool activity' })
   } else {
+    const [lowC, lowB, highC, highD] = b.toolLoad
     let grade: Grade = 'A'
-    if (m.toolLoad < TOOL_LOAD_LOW_B) {
-      grade = m.toolLoad < TOOL_LOAD_LOW_C ? 'C' : 'B'
+    if (m.toolLoad < lowB) {
+      grade = m.toolLoad < lowC ? 'C' : 'B'
     }
-    if (m.toolLoad > TOOL_LOAD_HIGH_C) {
-      grade = worst(grade, m.toolLoad > TOOL_LOAD_HIGH_D ? 'D' : 'C')
+    if (m.toolLoad > highC) {
+      grade = worst(grade, m.toolLoad > highD ? 'D' : 'C')
     }
     dimensions.push({ dimension: 'Tool load', grade, detail: `${m.toolLoad.toFixed(1)} tool calls per turn` })
   }

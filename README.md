@@ -65,7 +65,7 @@ All three read through the same trusted `ctx.sessionQuery` seam, so any persiste
 
 - **Local dev**: `npm ci && npm run typecheck && npm test && npm run bundle` (Node 20 or 22).
 - **Start in the source**: [`src/grade.ts`](src/grade.ts) (thresholds, grade cards), [`src/metrics.ts`](src/metrics.ts) (metric extraction), [`src/trend.ts`](src/trend.ts) (`/eval-history` trend logic). See [CONTRIBUTING.md](CONTRIBUTING.md) for the source map and first-PR suggestions.
-- **Open gaps**: [#1](https://github.com/kittimzhe/dsh-session-eval/issues/1) (configurable thresholds), [#2](https://github.com/kittimzhe/dsh-session-eval/issues/2) (`/eval-history --since`), [#3](https://github.com/kittimzhe/dsh-session-eval/issues/3) (`/eval-history --out`) — or browse [issues labeled `good first issue`](https://github.com/kittimzhe/dsh-session-eval/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+- **Open gaps**: [#1](https://github.com/kittimzhe/dsh-session-eval/issues/1) (configurable thresholds) and [#2](https://github.com/kittimzhe/dsh-session-eval/issues/2) (`/eval-history --since`) shipped in v0.3.0 — browse [issues labeled `good first issue`](https://github.com/kittimzhe/dsh-session-eval/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
 - **Rules**: behavior changes need tests; doc changes must update `README.md` and `README.zh.md` in sync; version releases belong to the maintainer. Details: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## How it differs from benchmark-style evaluation
@@ -90,10 +90,27 @@ Both are useful; they don't compete. Benchmarks test what you *predicted*; retro
 | `/eval-diff … --json` | Machine-readable trend report |
 | `/eval-history [N]` | Grade the last N sessions in this workspace and show the trend |
 | `/eval-history … --json` | Machine-readable history report |
+| `/eval-history --since 7d` | Grade only sessions with activity inside the window (`24h`, `30d` also parse) |
+
+`--since` filters by each session's **latest activity**, not its creation time: a session opened long ago but active an hour ago stays in the window; a freshly created but silent one drops out. With `--since 7d` the trend compares the first and last of the in-window set, and an empty window prints a clear message instead of a crash. Without the flag, behavior is exactly as before (last N sessions).
 
 Use `/eval-history --out report.md` to save the terminal card as Markdown, or add `--json` to save the JSON payload. Relative paths resolve against the current session workspace (the process working directory when unavailable). Parent directories must already exist; file errors are reported without creating directories. Existing output files are overwritten.
 
 `/eval-history` finds the sessions for you via the same `sessionQuery` seam `/archive` uses (scoped to the current workspace's `cwd`), grades each, and diffs the first against the last. `/eval-diff` remains the tool when you already know the two ids that matter.
+
+## Configuring grade bands
+
+The thresholds are defaults, not laws. A `gradeBands` block under the plugin's config node (naturally per-profile) overrides any dimension — values are the A–D upper bounds, ascending:
+
+```yaml
+session-eval:
+  gradeBands:
+    reliability: [4, 8, 15, 30]   # tool error-rate percent
+    reask: [0, 2, 4, 8]           # corrections per 10 user turns
+    toolLoad: [0.1, 0.5, 8, 20]   # tool calls per turn: [lowC, lowB, highC, highD]
+```
+
+Any subset may be overridden; unlisted dimensions keep the documented defaults. Unknown keys, wrong arity, non-numeric, negative, or non-ascending values fail fast at plugin load with a readable error — sessions are never graded against bands nobody chose.
 
 Typical use: grade the ten sessions before and after a plugin or prompt change; a persistent `Reliability` regression is an early warning that the change hurt real work, not just benchmarks.
 

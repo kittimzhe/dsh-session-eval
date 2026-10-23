@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, access } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { executeEvalHistory, parseEvalHistoryArgs, renderHistory } from '../src/historyCommand.ts'
 import { VERSION } from '../src/version.ts'
 
@@ -198,6 +198,85 @@ describe('history report files', () => {
       await expect(access(join(cwd, 'missing'))).rejects.toThrow()
     } finally {
       await rm(cwd, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('/eval-history --since (#2)', () => {
+  const at = (time: number, error = false) => [
+    { type: 'user/message', seq: 1, time, message: { role: 'user' } },
+    { type: 'assistant/message', seq: 2, time: time + 1, message: { role: 'assistant' } },
+    { type: 'tool/call', seq: 3, time: time + 2, message: { tool: 'bash' } },
+    { type: 'tool/result', seq: 4, time: time + 3, message: { tool: 'bash', isError: error } },
+  ]
+
+  it('parses 7d, 24h and 30d and rejects garbage', () => {
+    expect(parseEvalHistoryArgs('--since 7d')).toMatchObject({ since: { label: '7d' } })
+    expect(parseEvalHistoryArgs('--since 24h')).toMatchObject({ since: { label: '24h' } })
+    expect(parseEvalHistoryArgs('--since 30d')).toMatchObject({ since: { label: '30d' } })
+    expect(typeof parseEvalHistoryArgs('--since')).toBe('string')
+    expect(typeof parseEvalHistoryArgs('--since 7x')).toBe('string')
+    expect(typeof parseEvalHistoryArgs('--since -1d')).toBe('string')
+    expect(typeof parseEvalHistoryArgs('--since 7d --since 24h')).toBe('string')
+  })
+
+  it('grades only sessions whose latest activity is inside the window — not by createdAt', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(T0 + 3 * DAY)
+    try {
+      const headers: Header[] = [
+        // created long ago, but active an hour ago: inside
+        { id: 's-old-created-active-now', createdAt: T0 - 5 * DAY, cwd: '/work' },
+        // created now, but silent for 10 days: outside
+        { id: 's-new-created-silent-10d', createdAt: T0 + 3 * DAY, cwd: '/work' },
+        { id: 's-active-now-2', createdAt: T0, cwd: '/work' },
+      ]
+      const logs = {
+        's-old-created-active-now': at(T0 + 3 * DAY - 3_600_000),
+        's-new-created-silent-10d': at(T0 - 10 * DAY),
+        's-active-now-2': at(T0 + 3 * DAY - 7_200_000),
+      }
+      const result = await executeEvalHistory({} as never, invocation('--since 24h'), makeSeam(headers, logs) as never)
+      expect(result.kind).toBe('success')
+      if (result.kind !== 'success') return
+      expect(result.text).toContain('s-old-cr')  // id8 truncates session ids
+      expect(result.text).toContain('s-active')
+      expect(result.text).not.toContain('silent')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('prints a clear message when the window matches nothing', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(T0 + 3 * DAY)
+    try {
+      const result = await executeEvalHistory(
+        {} as never,
+        invocation('--since 24h'),
+        makeSeam([{ id: 's-only', createdAt: T0, cwd: '/work' }], { 's-only': at(T0 - 10 * DAY) }) as never,
+      )
+      expect(result.kind).toBe('success')
+      if (result.kind !== 'success') return
+      expect(result.text).toContain('last 24h')
+      expect(result.text).not.toContain('Trend')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('bounds the result to N in-window sessions', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(T0 + 3 * DAY)
+    try {
+      const headers: Header[] = [1, 2, 3].map((n) => ({ id: `s-in-${n}`, createdAt: T0 + n * 1000, cwd: '/work' }))
+      const logs: Record<string, unknown[]> = Object.fromEntries(headers.map((h) => [h.id, at(T0 + 3 * DAY - h.createdAt % 1000)]))
+      const result = await executeEvalHistory({} as never, invocation('2 --since 7d'), makeSeam(headers, logs) as never)
+      expect(result.kind).toBe('success')
+      if (result.kind !== 'success') return
+      expect(result.text).toContain('last 2')
+    } finally {
+      vi.useRealTimers()
     }
   })
 })

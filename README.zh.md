@@ -65,7 +65,7 @@ Notes:
 
 - **本地开发**：`npm ci && npm run typecheck && npm test && npm run bundle`（Node 20 或 22）。
 - **源码入口**：[`src/grade.ts`](src/grade.ts)（阈值与等级卡）、[`src/metrics.ts`](src/metrics.ts)（指标提取）、[`src/trend.ts`](src/trend.ts)（`/eval-history` 趋势逻辑）。源码地图与第一次 PR 建议见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-- **当前缺口**：[#1](https://github.com/kittimzhe/dsh-session-eval/issues/1)（阈值可配置）、[#2](https://github.com/kittimzhe/dsh-session-eval/issues/2)（`/eval-history --since`）、[#3](https://github.com/kittimzhe/dsh-session-eval/issues/3)（`/eval-history --out`）——或浏览 [`good first issue` 标签](https://github.com/kittimzhe/dsh-session-eval/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)。
+- **当前缺口**：[#1](https://github.com/kittimzhe/dsh-session-eval/issues/1)（阈值可配置）与 [#2](https://github.com/kittimzhe/dsh-session-eval/issues/2)（`/eval-history --since`）已在 v0.3.0 落地——或浏览 [`good first issue` 标签](https://github.com/kittimzhe/dsh-session-eval/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)。
 - **规矩**：行为变更必须带测试；文档必须 `README.md` 与 `README.zh.md` 同步改；版本发布由维护者执行。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 与基准式评测（dsh-eval）的区别
@@ -90,12 +90,29 @@ Notes:
 | `/eval-diff … --json` | 机器可读趋势报告 |
 | `/eval-history [N]` | 本工作区最近 N 个会话成绩单 + 首末趋势 |
 | `/eval-history … --json` | 机器可读历史报告 |
+| `/eval-history --since 7d` | 只评窗口内有活动的会话（也支持 `24h`、`30d`） |
+
+`--since` 按**最新活动时间**过滤，而非创建时间：很久前打开但一小时前还活跃的会话留在窗口内；刚创建但一直沉默的会被排除。`--since 7d` 下趋势对比的是窗口内首末两个会话；窗口为空时打印明确提示而不是崩溃。不加该参数时行为与从前完全一致（最近 N 个）。
 
 使用 `/eval-history --out report.md` 将终端卡片保存为 Markdown，添加 `--json` 则保存 JSON。相对路径基于当前会话工作目录（缺失时使用进程工作目录）。父目录必须已存在；写入失败会返回错误，不会创建目录。已存在的输出文件会被覆盖。
 
 `/eval-history` 通过与 `/archive` 相同的 `sessionQuery` 接缝自动找到会话（按当前工作区 `cwd` 过滤），逐个评级，并把首尾两个会话做趋势对比——不用再手动挑 id。已经知道两个关键 id 时用 `/eval-diff`。
 
 典型用法：换插件或 prompt 前后各评十个会话；`Reliability` 持续回归 = 改动伤害了真实工作的早期预警。
+
+## 配置等级阈值
+
+阈值是默认值而非铁律。在插件配置节点下（天然按 profile 区分）加 `gradeBands` 块即可覆盖任意维度——值为 A–D 各档上限、升序：
+
+```yaml
+session-eval:
+  gradeBands:
+    reliability: [4, 8, 15, 30]   # 工具错误率百分比
+    reask: [0, 2, 4, 8]           # 每 10 个用户轮次的纠错次数
+    toolLoad: [0.1, 0.5, 8, 20]   # 每轮工具调用数：[lowC, lowB, highC, highD]
+```
+
+可只覆盖部分维度；未列出的保持文档默认值。未知键、元素个数不对、非数字、负数或非升序，都会在插件加载时以可读错误快速失败——绝不会对着没人选过的阈值评级。
 
 ## 维度与阈值（确定性，无裁判）
 
