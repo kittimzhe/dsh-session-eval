@@ -1,3 +1,12 @@
+## 0.4.0 — 2026-11-05
+
+Evidence-handoff closure (#8): `/eval --report <bundle-or-archive.zip>`.
+
+- Grades straight from an exported dsh-session-export artifact — bundle ZIPs (nested archive.zip) and raw /archive ZIPs — no session id to copy, and it works after the session is gone from the store.
+- The artifact's JSONL is the canonical event log, so `--report` matches `/eval --id` exactly; a round-trip test builds bundles with the real dsh-session-export writer and asserts identical metrics and cards.
+- Zero runtime dependencies kept: a minimal ZIP reader (central directory + raw DEFLATE via node:zlib, CRC32-verified) mirrors the export writer; dsh-session-export is a devDependency only, for the interop test.
+- README.md / README.zh.md document the recall → report → eval closure with a worked example.
+
 ## 0.3.0 — 2026-10-23
 
 Feature release: configurable grade bands (#1) and the history time window (#2).

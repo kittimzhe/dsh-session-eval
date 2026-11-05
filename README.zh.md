@@ -61,6 +61,19 @@ Notes:
 
 三者都通过同一个可信的 `ctx.sessionQuery` 缝读取，JSONL / SQLite 等任何持久化后端均可使用。
 
+### 证据联动闭环（#8）
+
+`/eval --report` 直接从 `dsh-session-export` 已写出的产物评分——不用抄会话 id，会话从存储中删除后依然可评：
+
+```
+recall "resume template font"
+→ session session-ca62e005-… · report /proj/dsh-transcripts/bundle-ca62e005-20261104-120000.zip
+
+/eval --report /proj/dsh-transcripts/bundle-ca62e005-20261104-120000.zip
+```
+
+接受 bundle ZIP（内嵌 `archive.zip` 原始 JSONL）与裸 `/archive` ZIP。里面的 JSONL 就是权威事件日志——与 `readSession` 返回的是同一份字节——所以 `--report` 与 `/eval --id` **评分完全一致**（用真实 `dsh-session-export` 写入器做过往返测试）。`--id` 与 `--report` 互斥。
+
 ## 贡献
 
 - **本地开发**：`npm ci && npm run typecheck && npm test && npm run bundle`（Node 20 或 22）。

@@ -114,13 +114,18 @@ declare function gradeSession(m: SessionMetrics, bands?: Partial<GradeBands>): G
 /** Compare two sessions dimension by dimension. */
 declare function compareSessions(before: SessionMetrics, after: SessionMetrics): TrendReport;
 //#endregion
+//#region src/artifact.d.ts
+/** Filesystem seam (injectable for tests). */
+type ReadFile = (path: string) => Buffer;
+//#endregion
 //#region src/evalCommand.d.ts
-declare const EVAL_USAGE = "Usage: /eval [--id <sessionId>] [--json]";
+declare const EVAL_USAGE = "Usage: /eval [--id <sessionId>] [--report <bundle-or-archive.zip>] [--json]";
 declare const EVAL_DIFF_USAGE = "Usage: /eval-diff <beforeSessionId> <afterSessionId> [--json]";
 declare function id8(sessionId: string): string;
 /** Args for /eval. */
 interface EvalArgs {
   readonly sessionId?: string;
+  readonly report?: string;
   readonly json?: boolean;
 }
 /** Args for /eval-diff. */
@@ -142,8 +147,8 @@ interface QuerySeam {
     events: readonly unknown[];
   }>;
 }
-/** Execute /eval against the session-query seam. */
-declare function executeEval(ctx: Context, invocation: CommandInvocation, seam?: QuerySeam, bands?: Partial<GradeBands>): Promise<CommandResult>;
+/** Execute /eval against the session-query seam or an exported artifact. */
+declare function executeEval(ctx: Context, invocation: CommandInvocation, seam?: QuerySeam, bands?: Partial<GradeBands>, readFile?: ReadFile): Promise<CommandResult>;
 /** Execute /eval-diff against the session-query seam. */
 declare function executeEvalDiff(ctx: Context, invocation: CommandInvocation, seam?: QuerySeam): Promise<CommandResult>;
 //#endregion

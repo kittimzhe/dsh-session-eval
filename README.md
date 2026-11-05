@@ -61,6 +61,19 @@ Notes:
 
 All three read through the same trusted `ctx.sessionQuery` seam, so any persistence backend (JSONL or SQLite) works without touching raw artifacts.
 
+### Evidence-handoff closure (#8)
+
+`/eval --report` grades straight from an artifact `dsh-session-export` already wrote — no session id to copy, and it works after the session is gone from the store:
+
+```
+recall "resume template font"
+→ session session-ca62e005-… · report /proj/dsh-transcripts/bundle-ca62e005-20261104-120000.zip
+
+/eval --report /proj/dsh-transcripts/bundle-ca62e005-20261104-120000.zip
+```
+
+Bundle ZIPs (the nested `archive.zip` raw JSONL) and raw `/archive` ZIPs are both accepted. The JSONL inside is the canonical event log — the same bytes `readSession` returns — so `--report` grades **identically** to `/eval --id` (verified by a round-trip test against the real `dsh-session-export` writer). `--id` and `--report` are mutually exclusive.
+
 ## Contributing
 
 - **Local dev**: `npm ci && npm run typecheck && npm test && npm run bundle` (Node 20 or 22).
@@ -85,6 +98,7 @@ Both are useful; they don't compete. Benchmarks test what you *predicted*; retro
 |---|---|
 | `/eval` | Grade card for the current session |
 | `/eval --id <sessionId>` | Grade a specific session |
+| `/eval --report <bundle-or-archive.zip>` | Grade from an exported artifact (works after the session is gone from the store) |
 | `/eval --json` | Machine-readable metrics + card |
 | `/eval-diff <beforeId> <afterId>` | Regression comparison, noise-tolerant |
 | `/eval-diff … --json` | Machine-readable trend report |

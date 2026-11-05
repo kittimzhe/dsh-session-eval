@@ -11,12 +11,14 @@ import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands
 import type { Context } from '@deepseek-ai/cordis'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { adaptEvents, computeMetrics } from './metrics.ts'
+import { loadReportArtifact, type ReadFile } from './artifact.ts'
+import { readFileSync } from 'node:fs'
 import { gradeSession, type GradeBands } from './grade.ts'
 import { compareSessions } from './trend.ts'
 import type { GradeCard, TrendReport } from './types.ts'
 import { VERSION } from './version.ts'
 
-export const EVAL_USAGE = 'Usage: /eval [--id <sessionId>] [--json]'
+export const EVAL_USAGE = 'Usage: /eval [--id <sessionId>] [--report <bundle-or-archive.zip>] [--json]'
 export const EVAL_DIFF_USAGE = 'Usage: /eval-diff <beforeSessionId> <afterSessionId> [--json]'
 
 export function id8(sessionId: string): string {
@@ -26,6 +28,7 @@ export function id8(sessionId: string): string {
 /** Args for /eval. */
 export interface EvalArgs {
   readonly sessionId?: string
+  readonly report?: string
   readonly json?: boolean
 }
 
@@ -41,7 +44,7 @@ export function parseEvalArgs(rawInput: string): EvalArgs | string {
   const trimmed = rawInput.trim()
   if (trimmed.length === 0) return {}
   const tokens = trimmed.split(/\s+/)
-  const args: { sessionId?: string; json?: boolean } = {}
+  const args: { sessionId?: string; report?: string; json?: boolean } = {}
   let i = 0
   while (i < tokens.length) {
     const token = tokens[i]
@@ -51,6 +54,15 @@ export function parseEvalArgs(rawInput: string): EvalArgs | string {
       if (value === undefined || value.startsWith('--')) return `--id requires a session id value.\n${EVAL_USAGE}`
       if (args.sessionId !== undefined) return `--id may be given only once.\n${EVAL_USAGE}`
       args.sessionId = value
+      i += 2
+      continue
+    }
+    if (token === '--report') {
+      const value = tokens[i + 1]
+      if (value === undefined || value.startsWith('--')) return `--report requires an artifact path value.\n${EVAL_USAGE}`
+      if (args.report !== undefined) return `--report may be given only once.\n${EVAL_USAGE}`
+      if (args.sessionId !== undefined) return `--id and --report are mutually exclusive.\n${EVAL_USAGE}`
+      args.report = value
       i += 2
       continue
     }
@@ -125,15 +137,30 @@ async function readEvents(ctx: Context, seam: QuerySeam, sessionIdRaw: string): 
   }
 }
 
-/** Execute /eval against the session-query seam. */
+/** Execute /eval against the session-query seam or an exported artifact. */
 export async function executeEval(
   ctx: Context,
   invocation: CommandInvocation,
   seam: QuerySeam = (ctx as unknown as { sessionQuery: QuerySeam }).sessionQuery,
   bands: Partial<GradeBands> = {},
+  readFile: ReadFile = (path) => readFileSync(path),
 ): Promise<CommandResult> {
   const parsed = parseEvalArgs(invocation.rawInput)
   if (typeof parsed === 'string') return { kind: 'error', text: parsed }
+
+  if (parsed.report !== undefined) {
+    // Evidence handoff: grade the raw JSONL inside a bundle or archive ZIP —
+    // the same events readSession would return, so the numbers match /eval --id.
+    const artifact = loadReportArtifact(parsed.report, readFile)
+    if (typeof artifact === 'string') return { kind: 'error', text: artifact }
+    const metrics = computeMetrics(artifact.sessionId, adaptEvents(artifact.events))
+    const card = gradeSession(metrics, bands)
+    const note = `from artifact ${artifact.origin}`
+    if (parsed.json === true) {
+      return { kind: 'success', text: JSON.stringify({ generator: 'dsh-session-eval v' + VERSION, source: note, metrics, card }, null, 2) }
+    }
+    return { kind: 'success', text: `${renderCard(card, 'dsh-session-eval v' + VERSION)}\n(${note})` }
+  }
 
   const sessionIdRaw = parsed.sessionId ?? String(invocation.agent.session.id)
   const events = await readEvents(ctx, seam, sessionIdRaw)
