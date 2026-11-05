@@ -1,3 +1,10 @@
+## 0.4.1 — 2026-11-05
+
+Peer-range compatibility release (no behavior change).
+
+- `@deepseek-ai/dsh-*` peers widened to `^0.1.5-rc.3 || ^0.2.0 || 0.2.2-rc.1` and `@deepseek-ai/cordis` to `^4.0.2`, ahead of the DSH 0.2.2 release train.
+- Verified against `@deepseek-ai/*@0.2.2-rc.1` in a scratch install: full suite 60/60 green. Notably `SESSION_FORMAT_VERSION` moved 3 → 4 upstream; a v3-header archive still round-trips through the 0.2.2 `buildArchiveFromLog` (historical formats are translated), so existing exported bundles keep grading identically.
+
 ## 0.4.0 — 2026-11-05
 
 Evidence-handoff closure (#8): `/eval --report <bundle-or-archive.zip>`.
