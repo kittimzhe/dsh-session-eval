@@ -99,3 +99,55 @@ describe('renderers', () => {
     expect(typeof renderTrend).toBe('function')
   })
 })
+
+describe('session-format guardrails', () => {
+  it('stamps sessionFormatVersion from the header into /eval --json', async () => {
+    const seam = {
+      async readSession() {
+        return { events: [...cleanTurn(1)], session: { version: 3 } }
+      },
+    }
+    const result = await executeEval({} as never, invocation('--json'), seam as never)
+    const parsed = JSON.parse((result as { text: string }).text)
+    expect(parsed.sessionFormatVersion).toBe(3)
+  })
+
+  it('stamps sessionFormatVersion on --id reads too', async () => {
+    const seam = {
+      async readSession() {
+        return { events: [...cleanTurn(1)], session: { version: 4 } }
+      },
+    }
+    const result = await executeEval({} as never, invocation('--id some-session --json'), seam as never)
+    const parsed = JSON.parse((result as { text: string }).text)
+    expect(parsed.sessionFormatVersion).toBe(4)
+  })
+
+  it('reports null when the seam carries no session header', async () => {
+    const seam = makeSeam({ 'current-session': [...cleanTurn(1)] })
+    const result = await executeEval({} as never, invocation('--json'), seam as never)
+    const parsed = JSON.parse((result as { text: string }).text)
+    expect(parsed.sessionFormatVersion).toBeNull()
+  })
+
+  it('warns when a non-empty raw log projects to zero events', async () => {
+    // The log has events, but none in the vocabulary adaptEvents understands —
+    // the card must say the format may have drifted, not look empty.
+    const seam = {
+      async readSession() {
+        return { events: [{ type: 'system/heartbeat', seq: 1, time: 1 }, { type: 'system/heartbeat', seq: 2, time: 2 }], session: { version: 3 } }
+      },
+    }
+    const result = await executeEval({} as never, invocation(''), seam as never)
+    expect(result.kind).toBe('success')
+    const text = (result as { text: string }).text
+    expect(text).toContain('Projected 0 events from a non-empty log; session format may have drifted from what this version understands.')
+    const json = await executeEval({} as never, invocation('--json'), seam as never)
+    const parsed = JSON.parse((json as { text: string }).text)
+    expect(parsed.card.notes.join(' ')).toContain('Projected 0 events from a non-empty log')
+    // An empty session keeps the existing note and gains no drift note.
+    const emptySeam = makeSeam({ 'current-session': [] })
+    const empty = await executeEval({} as never, invocation(''), emptySeam as never)
+    expect((empty as { text: string }).text).not.toContain('drifted from what this version')
+  })
+})

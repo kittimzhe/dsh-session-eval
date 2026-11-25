@@ -25,7 +25,7 @@ Or from GitHub:
 dsh plugin --profile web add github:kittimzhe/dsh-session-eval
 ```
 
-The bundle overlay mounts `/eval`, `/eval-diff`, and `/eval-history`. If you maintain your own `cordis.patch.yml`, keep this row:
+The bundle overlay mounts `/eval`, `/eval-diff`, `/eval-history`, and `/eval-baseline`. If you maintain your own `cordis.patch.yml`, keep this row:
 
 ```yaml
 - insert:
@@ -74,6 +74,27 @@ recall "resume template font"
 
 Bundle ZIPs (the nested `archive.zip` raw JSONL) and raw `/archive` ZIPs are both accepted. The JSONL inside is the canonical event log — the same bytes `readSession` returns — so `--report` grades **identically** to `/eval --id` (verified by a round-trip test against the real `dsh-session-export` writer). `--id` and `--report` are mutually exclusive.
 
+## Baselines & format guardrails
+
+`/eval-baseline` pins grade cards per workspace and compares later sessions against them:
+
+```
+/eval-baseline set            # grade the current session, save it as the baseline
+/eval-baseline compare        # grade the current session, diff vs the latest baseline
+/eval-baseline list 10        # newest-first list of saved records (default 5)
+/eval-baseline clear          # delete the store (prints how many records it removed)
+```
+
+`set` and `compare` accept `--id <sessionId>` to grade another session, with the same default-to-current-session semantics as `/eval`. Records live in `<session cwd>/.dsh-evals/baseline.jsonl` — one JSON line per record, append-only. Each record carries the timestamp, session id, full metrics, the complete grade card, the generator version (`dsh-session-eval v…`), the session format version, and a fingerprint of the grade bands that were active when it was written (sha256 over version + bands, 16 hex — a `gradeBands` config change is therefore visible to `compare`). The store is read defensively: unparseable lines are skipped and counted, never fatal.
+
+`compare` reuses `/eval-diff`'s noise-tolerant comparison, so a ±2pp error-rate wiggle is `flat`, not a regression; per-dimension verdicts come with the signed delta against the baseline (percentage points for Reliability, raw metric units for the others).
+
+Three guardrails keep the numbers honest:
+
+- **Version stamping**: `/eval --json` and `--id` outputs carry a top-level `sessionFormatVersion` read from the session header (null when unavailable — including every `--report` grade, since an archived JSONL has no header).
+- **Zero-projection warning**: when a raw log has events but none of them project into the evaluation vocabulary, the card says so — *"Projected 0 events from a non-empty log; session format may have drifted from what this version understands"* — instead of silently grading zeros.
+- **Cross-version comparison warning**: `/eval-baseline compare` prints *"baseline recorded under …, current …; comparison crosses versions"* before its verdict whenever the recorded generator version, bands fingerprint, or session format version differs from the current run — the comparison still runs, but you can't mistake it for an apples-to-apples one.
+
 ## Contributing
 
 - **Local dev**: `npm ci && npm run typecheck && npm test && npm run bundle` (Node 20 or 22).
@@ -99,12 +120,16 @@ Both are useful; they don't compete. Benchmarks test what you *predicted*; retro
 | `/eval` | Grade card for the current session |
 | `/eval --id <sessionId>` | Grade a specific session |
 | `/eval --report <bundle-or-archive.zip>` | Grade from an exported artifact (works after the session is gone from the store) |
-| `/eval --json` | Machine-readable metrics + card |
+| `/eval --json` | Machine-readable metrics + card, with `sessionFormatVersion` |
 | `/eval-diff <beforeId> <afterId>` | Regression comparison, noise-tolerant |
 | `/eval-diff … --json` | Machine-readable trend report |
 | `/eval-history [N]` | Grade the last N sessions in this workspace and show the trend |
 | `/eval-history … --json` | Machine-readable history report |
 | `/eval-history --since 7d` | Grade only sessions with activity inside the window (`24h`, `30d` also parse) |
+| `/eval-baseline set [--id <sessionId>]` | Save the current (or given) session's grade card as this workspace's baseline |
+| `/eval-baseline compare [--id <sessionId>]` | Diff the current (or given) session against the latest baseline, with signed deltas |
+| `/eval-baseline list [N]` | List the last N baseline records, newest first (default 5) |
+| `/eval-baseline clear` | Delete the baseline store, reporting how many records it removed |
 
 `--since` filters by each session's **latest activity**, not its creation time: a session opened long ago but active an hour ago stays in the window; a freshly created but silent one drops out. With `--since 7d` the trend compares the first and last of the in-window set, and an empty window prints a clear message instead of a crash. Without the flag, behavior is exactly as before (last N sessions).
 

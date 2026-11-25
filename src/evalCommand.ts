@@ -10,7 +10,7 @@
 import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import type { Context } from '@deepseek-ai/cordis'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import { adaptEvents, computeMetrics } from './metrics.ts'
+import { adaptEvents, computeMetrics, zeroProjectionNote } from './metrics.ts'
 import { loadReportArtifact, type ReadFile } from './artifact.ts'
 import { readFileSync } from 'node:fs'
 import { gradeSession, type GradeBands } from './grade.ts'
@@ -126,14 +126,33 @@ export function renderTrend(report: TrendReport, generator: string): string {
   return lines.join('\n')
 }
 
-interface QuerySeam {
-  readSession(id: ReturnType<typeof SessionId>): Promise<{ events: readonly unknown[] }>
+/**
+ * One read through the session-query seam. The header rides along so the
+ * format-version guardrail can stamp outputs; `session` is optional because
+ * test seams and older backends may not carry it.
+ */
+interface SessionLog {
+  readonly events: readonly unknown[]
+  readonly session?: { readonly version?: unknown }
 }
 
-async function readEvents(ctx: Context, seam: QuerySeam, sessionIdRaw: string): Promise<readonly unknown[] | string> {
+interface QuerySeam {
+  readSession(id: ReturnType<typeof SessionId>): Promise<SessionLog>
+}
+
+/**
+ * Session-log format version from the read snapshot's header
+ * (`SessionHeader.version`), or null when the seam did not carry a header —
+ * e.g. artifact grading, where the archived JSONL has no header line.
+ */
+export function readFormatVersion(log: { session?: { version?: unknown } }): number | null {
+  const version = log.session?.version
+  return typeof version === 'number' && Number.isFinite(version) ? version : null
+}
+
+async function readLog(ctx: Context, seam: QuerySeam, sessionIdRaw: string): Promise<SessionLog | string> {
   try {
-    const log = await seam.readSession(SessionId(sessionIdRaw))
-    return log.events
+    return await seam.readSession(SessionId(sessionIdRaw))
   } catch (error) {
     return `Could not read session ${id8(sessionIdRaw)}: ${error instanceof Error ? error.message : String(error)}`
   }
@@ -156,23 +175,32 @@ export async function executeEval(
     const artifact = loadReportArtifact(parsed.report, readFile)
     if (typeof artifact === 'string') return { kind: 'error', text: artifact }
     const metrics = computeMetrics(artifact.sessionId, adaptEvents(artifact.events))
-    const card = gradeSession(metrics, bands)
+    // The archived JSONL carries no session header, so the format version is
+    // unknown here — null is an explicit "unavailable", not a zero.
     const note = `from artifact ${artifact.origin}`
+    const drift = zeroProjectionNote(artifact.events)
+    const graded = gradeSession(metrics, bands)
+    const card = drift === null ? graded : { ...graded, notes: [...graded.notes, drift] }
     if (parsed.json === true) {
-      return { kind: 'success', text: JSON.stringify({ generator: 'dsh-session-eval v' + VERSION, source: note, metrics, card }, null, 2) }
+      return { kind: 'success', text: JSON.stringify({ generator: 'dsh-session-eval v' + VERSION, sessionFormatVersion: null, source: note, metrics, card }, null, 2) }
     }
     return { kind: 'success', text: `${renderCard(card, 'dsh-session-eval v' + VERSION)}\n(${note})` }
   }
 
   const sessionIdRaw = parsed.sessionId ?? String(invocation.agent.session.id)
-  const events = await readEvents(ctx, seam, sessionIdRaw)
-  if (typeof events === 'string') return { kind: 'error', text: events }
+  const log = await readLog(ctx, seam, sessionIdRaw)
+  if (typeof log === 'string') return { kind: 'error', text: log }
 
-  const metrics = computeMetrics(sessionIdRaw, adaptEvents(events))
-  const card = gradeSession(metrics, bands)
+  const metrics = computeMetrics(sessionIdRaw, adaptEvents(log.events))
+  const drift = zeroProjectionNote(log.events)
+  const graded = gradeSession(metrics, bands)
+  const card = drift === null ? graded : { ...graded, notes: [...graded.notes, drift] }
 
   if (parsed.json === true) {
-    return { kind: 'success', text: JSON.stringify({ generator: 'dsh-session-eval v' + VERSION, metrics, card }, null, 2) }
+    return {
+      kind: 'success',
+      text: JSON.stringify({ generator: 'dsh-session-eval v' + VERSION, sessionFormatVersion: readFormatVersion(log), metrics, card }, null, 2),
+    }
   }
   return { kind: 'success', text: renderCard(card, 'dsh-session-eval v' + VERSION) }
 }
@@ -186,13 +214,13 @@ export async function executeEvalDiff(
   const parsed = parseEvalDiffArgs(invocation.rawInput)
   if (typeof parsed === 'string') return { kind: 'error', text: parsed }
 
-  const beforeEvents = await readEvents(ctx, seam, parsed.beforeId)
-  if (typeof beforeEvents === 'string') return { kind: 'error', text: beforeEvents }
-  const afterEvents = await readEvents(ctx, seam, parsed.afterId)
-  if (typeof afterEvents === 'string') return { kind: 'error', text: afterEvents }
+  const beforeLog = await readLog(ctx, seam, parsed.beforeId)
+  if (typeof beforeLog === 'string') return { kind: 'error', text: beforeLog }
+  const afterLog = await readLog(ctx, seam, parsed.afterId)
+  if (typeof afterLog === 'string') return { kind: 'error', text: afterLog }
 
-  const before = computeMetrics(parsed.beforeId, adaptEvents(beforeEvents))
-  const after = computeMetrics(parsed.afterId, adaptEvents(afterEvents))
+  const before = computeMetrics(parsed.beforeId, adaptEvents(beforeLog.events))
+  const after = computeMetrics(parsed.afterId, adaptEvents(afterLog.events))
   const report = compareSessions(before, after)
 
   if (parsed.json === true) {

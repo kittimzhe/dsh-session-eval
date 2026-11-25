@@ -75,6 +75,18 @@ export function adaptEvents(raw: readonly unknown[]): EvalEvent[] {
   return out.sort((a, b) => a.seq - b.seq)
 }
 
+/**
+ * Guardrail note: when the raw log has events but none of them project into
+ * the evaluation vocabulary, the metrics are zeros because the format
+ * drifted — not because the session was empty. Returns the note text for
+ * the grade card, or null when the projection is trustworthy.
+ */
+export function zeroProjectionNote(raw: readonly unknown[]): string | null {
+  return raw.length > 0 && adaptEvents(raw).length === 0
+    ? 'Projected 0 events from a non-empty log; session format may have drifted from what this version understands.'
+    : null
+}
+
 function classify(type: string, message: Record<string, unknown> | undefined): EvalEventKind | null {
   const t = type.toLowerCase()
   if (t.includes('user/message') || t === 'user') return 'user'

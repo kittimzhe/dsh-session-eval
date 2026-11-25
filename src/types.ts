@@ -72,6 +72,13 @@ export interface DimensionDelta {
   readonly before: string
   readonly after: string
   readonly verdict: 'improved' | 'regressed' | 'flat'
+  /**
+   * Signed numeric difference (after − before) in the dimension's own unit:
+   * an error-rate fraction for Reliability, corrections per 10 turns for
+   * Re-ask, calls per turn for Tool load. Consumers format it for display;
+   * see {@link ./trend.ts | formatDimensionChange}.
+   */
+  readonly change: number
 }
 
 /** Cross-session regression report. */

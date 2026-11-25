@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareSessions } from '../src/trend.ts'
+import { compareSessions, formatDimensionChange } from '../src/trend.ts'
 import { computeMetrics } from '../src/metrics.ts'
 import type { EvalEvent } from '../src/types.ts'
 
@@ -52,6 +52,28 @@ describe('compareSessions', () => {
     const report = compareSessions(computeMetrics('a', []), computeSessions_empty('b'))
     expect(report.deltas).toHaveLength(0)
     expect(report.overall).toBe('flat')
+  })
+
+  it('carries a signed numeric change per dimension for consumers to display', () => {
+    // before: 1/4 tools error (25%); after: 3/4 (75%) → +50pp, one extra
+    // re-ask per 10 turns, +0.5 tools per turn.
+    const before = computeMetrics('a', [...cleanTurn(1), ...cleanTurn(5), ...cleanTurn(9), ...cleanTurn(13, true)])
+    const after = computeMetrics('b', [...cleanTurn(1, true), ...cleanTurn(5, true), ...cleanTurn(9, true), ...cleanTurn(13)])
+    const report = compareSessions(before, after)
+    const byDimension = new Map(report.deltas.map((d) => [d.dimension, d]))
+    expect(byDimension.get('Reliability')?.change).toBeCloseTo(0.5)
+    expect(byDimension.get('Re-ask')?.change).toBe(0)
+    expect(byDimension.get('Tool load')?.change).toBe(0)
+  })
+})
+
+describe('formatDimensionChange', () => {
+  it('formats reliability in signed percentage points and others in raw units', () => {
+    expect(formatDimensionChange('Reliability', -0.25)).toBe('-25.0pp')
+    expect(formatDimensionChange('Reliability', 0.02)).toBe('+2.0pp')
+    expect(formatDimensionChange('Re-ask', 1.24)).toBe('+1.2')
+    expect(formatDimensionChange('Tool load', -0.75)).toBe('-0.8')
+    expect(formatDimensionChange('Tool load', 0)).toBe('±0.0')
   })
 })
 

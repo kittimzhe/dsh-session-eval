@@ -1,3 +1,13 @@
+## 0.5.0 — 2026-11-25
+
+Baseline persistence + session-format guardrails.
+
+- New: `/eval-baseline` command family. `set [--id <sessionId>]` grades the current session (or another, same default semantics as `/eval`) and appends a record to `<session cwd>/.dsh-evals/baseline.jsonl` — one JSON line carrying the timestamp, session id, generator version, session format version, full metrics, grade card, and a fingerprint of the active grade bands (sha256 over version + bands, 16 hex). `compare [--id <sessionId>]` grades the target session and diffs it against the workspace's latest baseline record reusing `/eval-diff`'s noise bands verbatim (`compareSessions`), printing per-dimension verdicts, driving dimensions, and signed deltas vs the baseline. `list [N]` shows the last N records newest-first (date, session id, Overall, version stamp; default 5). `clear` deletes the store, reporting how many records it removed (friendly no-op when none exist).
+- New: session-format guardrails at three points. `/eval --json` and `--id` outputs carry a top-level `sessionFormatVersion` read from the session header (`SessionHeader.version`; null when unavailable, including every `--report` artifact grade, since the archived JSONL carries no header). A non-empty raw log that projects to 0 events adds a card note — "Projected 0 events from a non-empty log; session format may have drifted from what this version understands." — instead of silently grading zeros. And `/eval-baseline compare` prints an explicit warning before comparing across generator versions, bands fingerprints, or session format versions ("baseline recorded under …, current …; comparison crosses versions").
+- The store is append-only and tolerant: bad lines are skipped and counted, never fatal — the same defensive posture as `adaptEvents` and the artifact loader. Zero runtime dependencies kept; the fingerprint uses node:crypto.
+- `compareSessions` deltas now carry a numeric `change` field (after − before, in each dimension's own unit) so consumers can render signed differences without re-deriving per-dimension math; `/eval-diff`'s existing output is unchanged.
+- Docs: bilingual README sections for the baseline store, the four subcommands, and the guardrails; commands tables updated.
+
 ## 0.4.3 — 2026-11-25
 
 Version pinning + guard test; symmetric `--report`/`--id` mutex; docs boundary fixes.

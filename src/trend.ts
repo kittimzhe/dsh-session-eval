@@ -17,6 +17,19 @@ function verdict(before: number, after: number, eps: number, lowerIsBetter: bool
   return better ? 'improved' : 'regressed'
 }
 
+/**
+ * Format one dimension's numeric change (from {@link DimensionDelta.change})
+ * as a signed human-readable string — percentage points for Reliability, raw
+ * metric units for the rest. Zero rounds to `±0.0` instead of a fake sign.
+ */
+export function formatDimensionChange(dimension: DimensionDelta['dimension'], change: number): string {
+  const magnitude = dimension === 'Reliability' ? Math.abs(change) * 100 : Math.abs(change)
+  const unit = dimension === 'Reliability' ? 'pp' : ''
+  const rounded = Number(magnitude.toFixed(1))
+  const sign = rounded === 0 ? '±' : change > 0 ? '+' : '-'
+  return `${sign}${magnitude.toFixed(1)}${unit}`
+}
+
 /** Compare two sessions dimension by dimension. */
 export function compareSessions(before: SessionMetrics, after: SessionMetrics): TrendReport {
   const deltas: DimensionDelta[] = []
@@ -27,6 +40,7 @@ export function compareSessions(before: SessionMetrics, after: SessionMetrics): 
       before: `${(before.toolErrorRate * 100).toFixed(1)}%`,
       after: `${(after.toolErrorRate * 100).toFixed(1)}%`,
       verdict: verdict(before.toolErrorRate, after.toolErrorRate, ERROR_RATE_EPSILON, true),
+      change: after.toolErrorRate - before.toolErrorRate,
     })
   }
   if (before.userTurns > 0 || after.userTurns > 0) {
@@ -35,6 +49,7 @@ export function compareSessions(before: SessionMetrics, after: SessionMetrics): 
       before: before.correctionRate.toFixed(1),
       after: after.correctionRate.toFixed(1),
       verdict: verdict(before.correctionRate, after.correctionRate, REASK_EPSILON, true),
+      change: after.correctionRate - before.correctionRate,
     })
   }
   if (before.toolCalls > 0 || after.toolCalls > 0) {
@@ -43,6 +58,7 @@ export function compareSessions(before: SessionMetrics, after: SessionMetrics): 
       before: before.toolLoad.toFixed(1),
       after: after.toolLoad.toFixed(1),
       verdict: verdict(before.toolLoad, after.toolLoad, TOOL_LOAD_EPSILON, false),
+      change: after.toolLoad - before.toolLoad,
     })
   }
 

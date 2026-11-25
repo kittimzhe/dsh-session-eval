@@ -25,7 +25,7 @@ dsh plugin --profile web add dsh-session-eval
 dsh plugin --profile web add github:kittimzhe/dsh-session-eval
 ```
 
-bundle 覆盖层会挂上 `/eval`、`/eval-diff`、`/eval-history`。若你维护自己的 `cordis.patch.yml`，请保留这一行：
+bundle 覆盖层会挂上 `/eval`、`/eval-diff`、`/eval-history`、`/eval-baseline`。若你维护自己的 `cordis.patch.yml`，请保留这一行：
 
 ```yaml
 - insert:
@@ -74,6 +74,27 @@ recall "resume template font"
 
 接受 bundle ZIP（内嵌 `archive.zip` 原始 JSONL）与裸 `/archive` ZIP。里面的 JSONL 就是权威事件日志——与 `readSession` 返回的是同一份字节——所以 `--report` 与 `/eval --id` **评分完全一致**（用真实 `dsh-session-export` 写入器做过往返测试）。`--id` 与 `--report` 互斥。
 
+## 基线与格式护栏
+
+`/eval-baseline` 把等级卡按工作区固化下来，供之后的会话对照：
+
+```
+/eval-baseline set            # 评当前会话，存为基线
+/eval-baseline compare        # 评当前会话，与最新基线做噪声带对比
+/eval-baseline list 10        # 倒序列出已存记录（默认 5 条）
+/eval-baseline clear          # 删除存储（报告删除了多少条记录）
+```
+
+`set` 与 `compare` 接受 `--id <会话ID>`，默认评当前会话——与 `/eval` 的默认语义一致。记录存在 `<会话cwd>/.dsh-evals/baseline.jsonl`，一行一条 JSON，只追加。每条记录携带时间戳、会话 id、完整指标、完整等级卡、生成器版本（`dsh-session-eval v…`）、会话格式版本，以及写入时生效的等级阈值指纹（对版本 + 阈值做 sha256，截 16 位十六进制——因此 `gradeBands` 配置变更对 `compare` 可见）。存储读取是防御式的：无法解析的行跳过并计数，绝不整体报错。
+
+`compare` 复用 `/eval-diff` 的噪声带对比逻辑——±2pp 的错误率抖动会判为 `flat` 而非回归；每个维度给出判定与相对基线的带符号差值（Reliability 用百分点，其余用指标原单位）。
+
+三道护栏让数字保持诚实：
+
+- **版本戳**：`/eval --json` 与 `--id` 输出带顶层 `sessionFormatVersion` 字段，从会话 header 读取（拿不到时为 null——包括所有 `--report` 评分，因为归档 JSONL 没有 header）。
+- **零投影警告**：原始日志非空但没有任何事件投影进评测词表时，卡片会明说——*"Projected 0 events from a non-empty log; session format may have drifted from what this version understands"*——而不是默默评出全零。
+- **跨版本对比警告**：当记录中的生成器版本、阈值指纹或会话格式版本与当前运行不一致时，`/eval-baseline compare` 在给出结论前先打印 *"baseline recorded under …, current …; comparison crosses versions"*——对比照常进行，但你不会误以为这是一次同类同版的对比。
+
 ## 贡献
 
 - **本地开发**：`npm ci && npm run typecheck && npm test && npm run bundle`（Node 20 或 22）。
@@ -94,17 +115,21 @@ recall "resume template font"
 
 ## 命令
 
-| 命令 | 效果 |
+| Command | 效果 |
 |---|---|
 | `/eval` | 当前会话等级卡 |
 | `/eval --id <会话ID>` | 指定会话 |
 | `/eval --report <bundle-or-archive.zip>` | 从导出产物评分（会话从存储中删除后依然可评） |
-| `/eval --json` | 机器可读指标 + 等级卡 |
+| `/eval --json` | 机器可读指标 + 等级卡，含 `sessionFormatVersion` |
 | `/eval-diff <前ID> <后ID>` | 回归对比（带噪声带） |
 | `/eval-diff … --json` | 机器可读趋势报告 |
 | `/eval-history [N]` | 本工作区最近 N 个会话成绩单 + 首末趋势 |
 | `/eval-history … --json` | 机器可读历史报告 |
 | `/eval-history --since 7d` | 只评窗口内有活动的会话（也支持 `24h`、`30d`） |
+| `/eval-baseline set [--id <会话ID>]` | 把当前（或指定）会话的等级卡存为本工作区基线 |
+| `/eval-baseline compare [--id <会话ID>]` | 当前（或指定）会话与最新基线对比，输出带符号差值 |
+| `/eval-baseline list [N]` | 倒序列出最近 N 条基线记录（默认 5） |
+| `/eval-baseline clear` | 删除基线存储，报告删除了多少条记录 |
 
 `--since` 按**最新活动时间**过滤，而非创建时间：很久前打开但一小时前还活跃的会话留在窗口内；刚创建但一直沉默的会被排除。`--since 7d` 下趋势对比的是窗口内首末两个会话；窗口为空时打印明确提示而不是崩溃。不加该参数时行为与从前完全一致（最近 N 个）。
 
