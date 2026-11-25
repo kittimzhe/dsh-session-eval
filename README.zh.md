@@ -42,7 +42,7 @@ bundle 覆盖层会挂上 `/eval`、`/eval-diff`、`/eval-history`。若你维�
 ```
 
 ```text
-Session eval — a1b2c3d4… (dsh-session-eval v0.2.2)
+Session eval — a1b2c3d4… (dsh-session-eval v0.4.3)
 Overall: A
   Reliability   A    2/87 tool results errored (2.3%)
   Re-ask        A    1 re-ask signal(s) over 23 turns (0.4/10 turns)
@@ -98,6 +98,7 @@ recall "resume template font"
 |---|---|
 | `/eval` | 当前会话等级卡 |
 | `/eval --id <会话ID>` | 指定会话 |
+| `/eval --report <bundle-or-archive.zip>` | 从导出产物评分（会话从存储中删除后依然可评） |
 | `/eval --json` | 机器可读指标 + 等级卡 |
 | `/eval-diff <前ID> <后ID>` | 回归对比（带噪声带） |
 | `/eval-diff … --json` | 机器可读趋势报告 |
@@ -132,7 +133,7 @@ session-eval:
 | 维度 | 指标 | A | B | C | D | E |
 |---|---|---|---|---|---|---|
 | Reliability | 工具错误率 | ≤5% | ≤10% | ≤20% | ≤35% | >35% |
-| Re-ask | 每 10 轮纠正信号¹ | 0 | <1 | <2 | <4 | ≥4 |
+| Re-ask | 每 10 轮纠正信号¹ | 0 | ≤1 | ≤2 | ≤4 | >4 |
 | Tool load | 每轮工具调用 | 0.5–8 | 0.1–0.5 | <0.1 或 8–20 | >20 | — |
 
 ¹ 纠正信号 = 连续用户消息中多出的那条（agent 还没回复用户就重问）——"第一次没做对"的行为学代理指标。

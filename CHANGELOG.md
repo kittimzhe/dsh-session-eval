@@ -1,3 +1,11 @@
+## 0.4.3 — 2026-11-25
+
+Version pinning + guard test; symmetric `--report`/`--id` mutex; docs boundary fixes.
+
+- Fix: `VERSION` in `src/version.ts` had drifted to 0.3.0 while package.json said 0.4.2, so every shipped grade card printed v0.3.0. The literal is re-pinned to the release version, and a new guard test (`test/version.test.ts`) asserts it equals package.json's `version`, so CI catches the next drift. package-lock.json resynced and `lib/` rebuilt so the bundled artifact carries the right string too.
+- Fix: `/eval --report b.zip --id x` parsed successfully and silently preferred `--report` — the mutex was only checked inside the `--report` branch. It now fires at parse time in either order, with the same usage-error message as before.
+- Docs: the threshold table now matches the code — Re-ask B is `≤1` (not `<1`) and E is `>4` (not `≥4`); exactly 1.0 grades B and exactly 4.0 grades D, locked by new boundary tests. Sample outputs bumped to the shipped version; README.zh.md's command table gained the missing `--report` row.
+
 ## 0.4.2 — 2026-11-23
 
 Peer-range compatibility release (no behavior change).

@@ -61,6 +61,38 @@ describe('gradeSession', () => {
     expect(card.dimensions.find((d) => d.dimension === 'Re-ask')?.grade).toBe('D')
   })
 
+  it('locks the documented re-ask boundaries: exactly 1.0/10 is B, exactly 4.0/10 is D', () => {
+    const build = (runs: number, solos: number): EvalEvent[] => {
+      const events: EvalEvent[] = []
+      let n = 0
+      const push = (kind: EvalEvent['kind']) => {
+        n += 1
+        events.push({ seq: n, time: n * 100, kind })
+      }
+      for (let i = 0; i < runs; i += 1) {
+        push('user')
+        push('user')
+        push('assistant')
+      }
+      for (let i = 0; i < solos; i += 1) {
+        push('user')
+        push('assistant')
+      }
+      return events
+    }
+    const dim = (card: ReturnType<typeof gradeSession>) => card.dimensions.find((d) => d.dimension === 'Re-ask')!
+
+    // 1 correction over 10 user turns = exactly 1.0/10 → B (the bound is inclusive: gradeBy uses ≤)
+    const one = session(build(1, 8))
+    expect(dim(one).detail).toContain('1.0/10 turns')
+    expect(dim(one).grade).toBe('B')
+
+    // 4 corrections over 10 user turns = exactly 4.0/10 → D, not E (E starts strictly above 4)
+    const four = session(build(4, 2))
+    expect(dim(four).detail).toContain('4.0/10 turns')
+    expect(dim(four).grade).toBe('D')
+  })
+
   it('Tool load penalizes both extremes', () => {
     // 1 turn, 30 tool calls → churn → D
     const events: EvalEvent[] = [{ seq: 1, time: 100, kind: 'user' }]

@@ -205,7 +205,7 @@ declare function executeEvalHistory(ctx: Context, invocation: CommandInvocation,
  *
  * @module dsh-session-eval/version
  */
-declare const VERSION = "0.3.0";
+declare const VERSION = "0.4.3";
 //#endregion
 //#region src/index.d.ts
 declare const name = "session-eval";

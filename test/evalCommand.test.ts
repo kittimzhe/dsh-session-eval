@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { executeEval, executeEvalDiff, parseEvalArgs, parseEvalDiffArgs, renderCard, renderTrend, id8 } from '../src/evalCommand.ts'
+import { executeEval, executeEvalDiff, EVAL_USAGE, parseEvalArgs, parseEvalDiffArgs, renderCard, renderTrend, id8 } from '../src/evalCommand.ts'
 
 const cleanTurn = (base: number, error = false) => [
   { type: 'user/message', seq: base, time: base * 100, message: { role: 'user' } },
@@ -29,6 +29,14 @@ describe('parseEvalArgs', () => {
     expect(parseEvalArgs('--id abc --json')).toEqual({ sessionId: 'abc', json: true })
     expect(typeof parseEvalArgs('--id')).toBe('string')
     expect(typeof parseEvalArgs('--bogus')).toBe('string')
+  })
+
+  it('rejects --id together with --report when --id comes first', () => {
+    expect(parseEvalArgs('--id x --report b.zip')).toBe(`--id and --report are mutually exclusive.\n${EVAL_USAGE}`)
+  })
+
+  it('rejects --id together with --report when --report comes first', () => {
+    expect(parseEvalArgs('--report b.zip --id x')).toBe(`--id and --report are mutually exclusive.\n${EVAL_USAGE}`)
   })
 })
 

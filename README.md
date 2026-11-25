@@ -42,7 +42,7 @@ In DeepSeek Harness:
 ```
 
 ```text
-Session eval — a1b2c3d4… (dsh-session-eval v0.2.2)
+Session eval — a1b2c3d4… (dsh-session-eval v0.4.3)
 Overall: A
   Reliability   A    2/87 tool results errored (2.3%)
   Re-ask        A    1 re-ask signal(s) over 23 turns (0.4/10 turns)
@@ -135,7 +135,7 @@ All grades derive from three deterministic metrics. `n/a` when the session lacks
 | Dimension | Metric | A | B | C | D | E |
 |---|---|---|---|---|---|---|
 | Reliability | tool error rate | ≤5% | ≤10% | ≤20% | ≤35% | >35% |
-| Re-ask | corrections per 10 turns¹ | 0 | <1 | <2 | <4 | ≥4 |
+| Re-ask | corrections per 10 turns¹ | 0 | ≤1 | ≤2 | ≤4 | >4 |
 | Tool load | tool calls per turn | 0.5–8 | 0.1–0.5 or just above 8 | <0.1 or 8–20 | >20 | — |
 
 ¹ A *correction signal* is each extra user message inside a consecutive-user run — the human re-asking before any assistant reply, a behavioral proxy for "the agent didn't get it right the first time."

@@ -61,7 +61,6 @@ export function parseEvalArgs(rawInput: string): EvalArgs | string {
       const value = tokens[i + 1]
       if (value === undefined || value.startsWith('--')) return `--report requires an artifact path value.\n${EVAL_USAGE}`
       if (args.report !== undefined) return `--report may be given only once.\n${EVAL_USAGE}`
-      if (args.sessionId !== undefined) return `--id and --report are mutually exclusive.\n${EVAL_USAGE}`
       args.report = value
       i += 2
       continue
@@ -73,6 +72,9 @@ export function parseEvalArgs(rawInput: string): EvalArgs | string {
       continue
     }
     return `Unknown argument: ${token}\n${EVAL_USAGE}`
+  }
+  if (args.sessionId !== undefined && args.report !== undefined) {
+    return `--id and --report are mutually exclusive.\n${EVAL_USAGE}`
   }
   return args
 }
